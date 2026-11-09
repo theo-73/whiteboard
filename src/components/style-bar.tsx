@@ -136,7 +136,7 @@ export function StyleBar({ editor }: StyleBarProps) {
           aria-label="Shape Styling Toolbar"
         >
           {/* COLOR PALETTE */}
-          <div className="flex items-center gap-1 px-1">
+          <div className="flex items-center gap-1.5 px-1">
             {COLOR_OPTIONS.map((c) => (
               <button
                 key={c.value}
@@ -144,7 +144,7 @@ export function StyleBar({ editor }: StyleBarProps) {
                 onMouseEnter={playHover}
                 aria-label={`Set color ${c.label}`}
                 title={c.label}
-                className={`w-6 h-6 rounded-full transition-transform hover:scale-115 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
+                className={`w-6 h-6 rounded-full transition-transform active:scale-90 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
                   currentColor === c.value ? 'ring-2 ring-white scale-110 shadow-md' : 'opacity-80 hover:opacity-100'
                 }`}
                 style={{ backgroundColor: c.bg }}
@@ -161,7 +161,7 @@ export function StyleBar({ editor }: StyleBarProps) {
                 key={f.value}
                 onClick={() => handleSetFill(f.value)}
                 onMouseEnter={playHover}
-                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
                   currentFill === f.value
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -181,7 +181,7 @@ export function StyleBar({ editor }: StyleBarProps) {
                 key={d.value}
                 onClick={() => handleSetDash(d.value)}
                 onMouseEnter={playHover}
-                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
                   currentDash === d.value
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -201,7 +201,7 @@ export function StyleBar({ editor }: StyleBarProps) {
               onMouseEnter={playHover}
               title="Duplicate (Ctrl+D)"
               aria-label="Duplicate selected shapes"
-              className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 active:scale-90 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             >
               <Copy size={15} />
             </button>
@@ -210,7 +210,7 @@ export function StyleBar({ editor }: StyleBarProps) {
               onMouseEnter={playHover}
               title="Delete (Backspace)"
               aria-label="Delete selected shapes"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             >
               <Trash2 size={15} />
             </button>

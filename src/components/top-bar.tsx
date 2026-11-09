@@ -285,17 +285,17 @@ export function TopBar({ editor }: TopBarProps) {
           {/* Share Button */}
           <button 
             onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           >
-            {copied ? <Check size={14} className="text-green-500" /> : <LinkIcon size={14} />}
-            {copied ? 'Copied!' : 'Share'}
+            {copied ? <Check size={14} className="text-emerald-400" /> : <LinkIcon size={14} />}
+            {copied ? 'Copied Link!' : 'Share'}
           </button>
           
           {/* Export / Import Button */}
           <button 
             onClick={handleOpenExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:opacity-90 transition-opacity shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:opacity-90 active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
           >
             <Download size={14} />
             Export / Import
@@ -306,7 +306,7 @@ export function TopBar({ editor }: TopBarProps) {
             onClick={toggleSounds}
             aria-label={soundsEnabled ? "Disable UI sounds" : "Enable UI sounds"}
             data-tooltip={soundsEnabled ? "Mute sounds" : "Unmute sounds"}
-            className="tooltip p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="tooltip p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {soundsEnabled ? <Volume2 size={18} className="text-purple-400" /> : <VolumeX size={18} />}
           </button>
@@ -316,7 +316,7 @@ export function TopBar({ editor }: TopBarProps) {
             onClick={toggleTheme}
             aria-label="Toggle theme"
             data-tooltip="Toggle theme"
-            className="tooltip p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="tooltip p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
           </button>

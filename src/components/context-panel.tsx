@@ -11,7 +11,8 @@ import {
   Trash2, 
   ExternalLink,
   Upload,
-  Check
+  Check,
+  Copy
 } from 'lucide-react';
 import { useContextStore } from '@/store/context-store';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,8 +43,17 @@ export function ContextPanel() {
   const [newCodeSnippet, setNewCodeSnippet] = useState('');
 
   const [savedNotesNotice, setSavedNotesNotice] = useState(false);
+  const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null);
 
   const currentCtx = getShapeContext(activeShapeId || '');
+
+  const handleCopySnippet = (id: string, code: string) => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(code);
+      setCopiedSnippetId(id);
+      setTimeout(() => setCopiedSnippetId(null), 1500);
+    }
+  };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!activeShapeId) return;
@@ -142,15 +152,15 @@ export function ContextPanel() {
       <div 
         role="tablist" 
         aria-label="Context Tabs"
-        className="flex items-center gap-1 p-2 border-b" 
+        className="flex items-center gap-1 p-2 border-b select-none" 
         style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}
       >
         <button
           role="tab"
           aria-selected={activeTab === 'notes'}
           onClick={() => setActiveTab('notes')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'notes' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+            activeTab === 'notes' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <FileText size={14} /> Notes
@@ -160,33 +170,33 @@ export function ContextPanel() {
           role="tab"
           aria-selected={activeTab === 'links'}
           onClick={() => setActiveTab('links')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all relative ${
-            activeTab === 'links' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all relative ${
+            activeTab === 'links' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <LinkIcon size={14} /> Links ({currentCtx.links.length})
+          <LinkIcon size={14} /> Links <span className="tabular-nums font-mono text-[10px]">({currentCtx.links.length})</span>
         </button>
 
         <button
           role="tab"
           aria-selected={activeTab === 'code'}
           onClick={() => setActiveTab('code')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'code' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+            activeTab === 'code' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Code2 size={14} /> Code ({currentCtx.codeSnippets.length})
+          <Code2 size={14} /> Code <span className="tabular-nums font-mono text-[10px]">({currentCtx.codeSnippets.length})</span>
         </button>
 
         <button
           role="tab"
           aria-selected={activeTab === 'files'}
           onClick={() => setActiveTab('files')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'files' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+          className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+            activeTab === 'files' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Paperclip size={14} /> Files ({currentCtx.files.length})
+          <Paperclip size={14} /> Files <span className="tabular-nums font-mono text-[10px]">({currentCtx.files.length})</span>
         </button>
       </div>
 
@@ -342,12 +352,27 @@ export function ContextPanel() {
                   <div key={snip.id} className="flex flex-col rounded-xl bg-black/40 border border-white/10 overflow-hidden">
                     <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 flex items-center justify-between">
                       <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold">{snip.language}</span>
-                      <button
-                        onClick={() => activeShapeId && removeCodeSnippet(activeShapeId, snip.id)}
-                        className="p-1 text-gray-400 hover:text-red-400"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleCopySnippet(snip.id, snip.code)}
+                          aria-label="Copy snippet code"
+                          title="Copy snippet code"
+                          className="p-1 rounded text-gray-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all flex items-center gap-1 text-[10px]"
+                        >
+                          {copiedSnippetId === snip.id ? (
+                            <span className="text-emerald-400 flex items-center gap-0.5"><Check size={12} /> Copied</span>
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => activeShapeId && removeCodeSnippet(activeShapeId, snip.id)}
+                          aria-label="Delete snippet"
+                          className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                     <pre className="p-3 text-[11px] font-mono text-green-400 overflow-x-auto whitespace-pre-wrap max-h-40">
                       {snip.code}

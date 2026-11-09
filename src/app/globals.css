@@ -136,10 +136,14 @@ body {
   background: var(--text-muted);
 }
 
-/* --- Selection --- */
+/* --- Selection & Caret --- */
 ::selection {
-  background: var(--accent-subtle);
-  color: var(--accent);
+  background: rgba(124, 92, 252, 0.3);
+  color: #f0f0f5;
+}
+
+input, textarea {
+  caret-color: var(--accent);
 }
 
 /* --- Focus Ring --- */

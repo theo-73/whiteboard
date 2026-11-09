@@ -221,7 +221,7 @@ export default function LandingPage() {
           <motion.div variants={fadeUpVariant} className="flex flex-col sm:flex-row items-center gap-4 mb-16 w-full justify-center max-w-md">
             <button 
               onClick={handleCreateBoard}
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white font-semibold text-lg shadow-[0_0_40px_rgba(147,51,234,0.35)] hover:shadow-[0_0_60px_rgba(147,51,234,0.6)] hover:scale-[1.03] transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white font-semibold text-lg shadow-[0_0_40px_rgba(147,51,234,0.35)] hover:shadow-[0_0_60px_rgba(147,51,234,0.6)] hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             >
               <span className="relative z-10 flex items-center gap-3">
                 Launch Canvas <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -230,7 +230,7 @@ export default function LandingPage() {
             </button>
             <button 
               onClick={() => setShowJoinModal(true)}
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/20 transition-all backdrop-blur-xl flex items-center justify-center gap-2 spotlight-hover"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all backdrop-blur-xl flex items-center justify-center gap-2 spotlight-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             >
               <Users size={18} className="text-purple-400" /> Join Existing Room
             </button>
@@ -361,7 +361,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-2 mb-8 p-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl max-w-2xl mx-auto">
             <button
               onClick={() => setActiveTab("ai")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
                 activeTab === "ai" 
                   ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
                   : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -371,7 +371,7 @@ export default function LandingPage() {
             </button>
             <button
               onClick={() => setActiveTab("layout")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
                 activeTab === "layout" 
                   ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
                   : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -381,7 +381,7 @@ export default function LandingPage() {
             </button>
             <button
               onClick={() => setActiveTab("context")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
                 activeTab === "context" 
                   ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
                   : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -391,7 +391,7 @@ export default function LandingPage() {
             </button>
             <button
               onClick={() => setActiveTab("replay")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
                 activeTab === "replay" 
                   ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
                   : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -406,7 +406,6 @@ export default function LandingPage() {
             {activeTab === "ai" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
                 <div>
-                  <span className="text-xs font-mono text-purple-400 uppercase tracking-widest block mb-2">01 / Deep AI Intelligence</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">AI Copilot & Architecture Assist</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
                     Type a prompt like <em className="text-purple-300">&quot;Add a microservice architecture with Redis cache and API gateway&quot;</em>. SynapseBoard streams ghost shapes onto the canvas in real time.
@@ -428,7 +427,6 @@ export default function LandingPage() {
             {activeTab === "layout" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
                 <div>
-                  <span className="text-xs font-mono text-indigo-400 uppercase tracking-widest block mb-2">02 / Automated DAG Topology</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">Mess Cleanup Engine</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
                     Stop manually aligning canvas boxes. One click triggers a 350ms cubic-bezier animated auto-layout that reorganizes messy canvas nodes into clean hierarchical DAG layers.
@@ -440,7 +438,7 @@ export default function LandingPage() {
                 <div className="p-4 rounded-xl bg-[#090912] border border-white/10 flex flex-col gap-3">
                   <div className="flex items-center justify-between text-xs text-gray-400 border-b border-white/10 pb-2">
                     <span>DAG Topology Matrix</span>
-                    <span className="text-indigo-400 font-mono">Layout Physics: 350ms</span>
+                    <span className="text-indigo-400 font-mono tabular-nums">Layout Physics: 350ms</span>
                   </div>
                   <div className="flex items-center justify-around py-4">
                     <div className="px-3 py-1.5 rounded bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs">Layer 0</div>
@@ -456,7 +454,6 @@ export default function LandingPage() {
             {activeTab === "context" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
                 <div>
-                  <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2">03 / Shape Metadata Layer</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">Executable Context Layer</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
                     Attach notes, reference links, code snippets with syntax highlighting, and file documents directly to individual shapes with visual canvas context badges.
@@ -485,7 +482,6 @@ export default function LandingPage() {
             {activeTab === "replay" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
                 <div>
-                  <span className="text-xs font-mono text-emerald-400 uppercase tracking-widest block mb-2">04 / Revision Timeline</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">Time-Travel Replay</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
                     Scrub through diagram history step-by-step with interactive playback controls. Review how your team&apos;s architecture evolved over time.
@@ -496,7 +492,7 @@ export default function LandingPage() {
                 </div>
                 <div className="p-4 rounded-xl bg-[#090912] border border-white/10 flex flex-col gap-3">
                   <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>History Slider (Step 12 / 24)</span>
+                    <span>History Slider <span className="tabular-nums font-mono">(Step 12 / 24)</span></span>
                     <span className="text-emerald-400">Playing @ 1x</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
@@ -628,7 +624,7 @@ const StatCard = React.memo(function StatCard({ number, suffix = "", prefix = ""
     <AnimatedBorder>
       <div ref={ref} className="glow-card p-6 flex flex-col items-center text-center w-full h-full min-h-[140px]">
         <div className="mb-2 p-2 rounded-lg bg-white/5">{icon}</div>
-        <span className="text-2xl md:text-3xl font-extrabold text-white mb-1 font-mono">
+        <span className="text-2xl md:text-3xl font-extrabold text-white mb-1 font-mono tabular-nums tracking-tight">
           {prefix}{noCount ? "" : count}{suffix}
         </span>
         <span className="text-xs text-gray-400 font-medium">{label}</span>

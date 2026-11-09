@@ -28,15 +28,15 @@ interface ToolbarProps {
   editor?: Editor | null;
 }
 
-const tools: { id: Tool; icon: LucideIcon; label: string }[] = [
-  { id: 'select', icon: MousePointer2, label: 'Select' },
-  { id: 'hand', icon: Hand, label: 'Hand' },
-  { id: 'draw', icon: Pen, label: 'Draw' },
-  { id: 'rectangle', icon: Square, label: 'Rectangle' },
-  { id: 'ellipse', icon: Circle, label: 'Ellipse' },
-  { id: 'arrow', icon: ArrowUpRight, label: 'Arrow' },
-  { id: 'text', icon: Type, label: 'Text' },
-  { id: 'eraser', icon: Eraser, label: 'Eraser' },
+const tools: { id: Tool; icon: LucideIcon; label: string; shortcut: string }[] = [
+  { id: 'select', icon: MousePointer2, label: 'Select', shortcut: 'V' },
+  { id: 'hand', icon: Hand, label: 'Hand', shortcut: 'H' },
+  { id: 'draw', icon: Pen, label: 'Draw', shortcut: 'D' },
+  { id: 'rectangle', icon: Square, label: 'Rectangle', shortcut: 'R' },
+  { id: 'ellipse', icon: Circle, label: 'Ellipse', shortcut: 'O' },
+  { id: 'arrow', icon: ArrowUpRight, label: 'Arrow', shortcut: 'A' },
+  { id: 'text', icon: Type, label: 'Text', shortcut: 'T' },
+  { id: 'eraser', icon: Eraser, label: 'Eraser', shortcut: 'E' },
 ];
 
 const containerVariants: Variants = {
@@ -240,7 +240,7 @@ export function Toolbar({ editor }: ToolbarProps) {
       aria-orientation="vertical"
       aria-label="Canvas Tools"
       onKeyDown={handleKeyDown}
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-4 md:top-1/2 md:-translate-y-1/2 md:translate-x-0 flex flex-row md:flex-col gap-1 md:gap-2 p-1.5 md:p-2 glass z-50 max-w-[95vw] md:max-w-none max-h-[80vh] overflow-x-auto md:overflow-y-auto border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      className="fixed bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-4 md:top-1/2 md:-translate-y-1/2 md:translate-x-0 flex flex-row md:flex-col gap-1 md:gap-2 p-1.5 md:p-2 glass z-50 max-w-[96vw] md:max-w-none overflow-x-auto md:overflow-visible border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none backdrop-blur-xl"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
       {tools.map((tool) => (
@@ -249,25 +249,27 @@ export function Toolbar({ editor }: ToolbarProps) {
           key={tool.id}
           onClick={() => handleToolSelect(tool.id)}
           onMouseEnter={playHover}
-          aria-label={tool.label}
-          className={`relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+          aria-label={`${tool.label} (${tool.shortcut})`}
+          className={`relative group w-9 h-9 md:w-10 md:h-10 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all duration-150 flex-shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             activeTool === tool.id 
               ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] scale-105' 
               : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
           }`}
         >
-          <tool.icon size={16} className="md:w-5 md:h-5 transition-transform group-hover:scale-110 group-active:scale-95" />
+          <tool.icon size={17} className="md:w-5 md:h-5 transition-transform group-hover:scale-110" />
           
           <div 
-            className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200"
+            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-1/2 md:-translate-y-1/2 md:translate-x-0 md:ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200 flex items-center gap-1.5"
             aria-hidden="true"
           >
-            {tool.label}
+            <span>{tool.label}</span>
+            <kbd className="px-1 py-0.5 rounded bg-white/15 text-[10px] font-mono text-purple-200">{tool.shortcut}</kbd>
           </div>
         </motion.button>
       ))}
 
-      <motion.div variants={itemVariants} className="w-full h-px my-1 bg-white/10" />
+      <motion.div variants={itemVariants} className="hidden md:block w-full h-px my-1 bg-white/10" />
+      <motion.div variants={itemVariants} className="block md:hidden w-px h-6 my-auto mx-0.5 bg-white/10 flex-shrink-0" />
 
       {/* MESS CLEANUP BUTTON */}
       <motion.button
@@ -275,13 +277,13 @@ export function Toolbar({ editor }: ToolbarProps) {
         onClick={handleMessCleanup}
         onMouseEnter={playHover}
         aria-label="Mess Cleanup — Auto-align diagram structure"
-        className="relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 overflow-hidden bg-gradient-to-tr from-amber-500/20 to-purple-500/20 hover:from-amber-500/40 hover:to-purple-500/40 border border-amber-500/40 text-amber-300 hover:scale-105 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="relative group w-9 h-9 md:w-10 md:h-10 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0 overflow-hidden bg-gradient-to-tr from-amber-500/20 to-purple-500/20 hover:from-amber-500/40 hover:to-purple-500/40 border border-amber-500/40 text-amber-300 hover:scale-105 active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Wand2 size={18} className="text-amber-400 group-hover:rotate-12 transition-transform" />
         
         {/* Tooltip */}
         <div 
-          className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-semibold text-amber-300 shadow-xl border border-amber-500/30"
+          className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-1/2 md:-translate-y-1/2 md:translate-x-0 md:ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-semibold text-amber-300 shadow-xl border border-amber-500/30"
           aria-hidden="true"
         >
           {cleanedCount !== null ? `Aligned ${cleanedCount} shapes!` : 'Mess Cleanup (Auto-Align)'}
@@ -294,7 +296,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         onClick={handleConvertFreehandSketch}
         onMouseEnter={playHover}
         aria-label="Magic Sketch — Convert rough drawings into clean architecture shapes"
-        className={`relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 overflow-hidden bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 hover:from-cyan-500/40 hover:to-indigo-500/40 border border-cyan-500/40 text-cyan-300 hover:scale-105 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
+        className={`relative group w-9 h-9 md:w-10 md:h-10 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0 overflow-hidden bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 hover:from-cyan-500/40 hover:to-indigo-500/40 border border-cyan-500/40 text-cyan-300 hover:scale-105 active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
           convertingSketch ? 'animate-pulse' : ''
         }`}
       >
@@ -302,7 +304,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         
         {/* Tooltip */}
         <div 
-          className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-semibold text-cyan-300 shadow-xl border border-cyan-500/30"
+          className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-1/2 md:-translate-y-1/2 md:translate-x-0 md:ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-semibold text-cyan-300 shadow-xl border border-cyan-500/30"
           aria-hidden="true"
         >
           {convertingSketch ? 'Converting Sketch...' : 'Magic Sketch (Convert Freehand)'}
@@ -315,7 +317,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         onClick={handleToggleContext}
         onMouseEnter={playHover}
         aria-label="Context Layer — Attach Notes, Links, Code & Files"
-        className={`relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+        className={`relative group w-9 h-9 md:w-10 md:h-10 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
           isContextPanelOpen 
             ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] border border-purple-400/50 scale-105' 
             : 'hover:bg-white/10 text-gray-300 border border-transparent'
@@ -325,14 +327,15 @@ export function Toolbar({ editor }: ToolbarProps) {
         
         {/* Tooltip */}
         <div 
-          className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200"
+          className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-1/2 md:-translate-y-1/2 md:translate-x-0 md:ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200"
           aria-hidden="true"
         >
           Context Layer (Notes/Links/Code)
         </div>
       </motion.button>
 
-      <motion.div variants={itemVariants} className="w-full h-px my-1 bg-white/10" />
+      <motion.div variants={itemVariants} className="hidden md:block w-full h-px my-1 bg-white/10" />
+      <motion.div variants={itemVariants} className="block md:hidden w-px h-6 my-auto mx-0.5 bg-white/10 flex-shrink-0" />
 
       {/* AI COPILOT BUTTON */}
       <motion.button
@@ -340,7 +343,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         onClick={() => { playClick(); toggleAiPanel(); }}
         onMouseEnter={playHover}
         aria-label="AI Architecture Assist"
-        className={`relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+        className={`relative group w-9 h-9 md:w-10 md:h-10 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0 overflow-hidden active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
           aiPanelOpen 
             ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-[0_0_25px_rgba(147,51,234,0.5)] border border-purple-400/50 scale-105' 
             : 'hover:bg-white/10 text-gray-300 border border-transparent'
@@ -353,7 +356,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         
         {/* Tooltip */}
         <div 
-          className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200"
+          className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-1/2 md:-translate-y-1/2 md:translate-x-0 md:ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-medium shadow-xl border border-white/10 text-gray-200"
           aria-hidden="true"
         >
           AI Architecture Assist

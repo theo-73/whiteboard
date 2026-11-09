@@ -567,9 +567,30 @@ export function AiPanel({ editor }: AiPanelProps) {
             {/* Recommendations List */}
             <div className="flex flex-col gap-3">
               {recommendations.length === 0 && !isAnalyzing && (
-                <div className="text-center py-8 text-gray-500 text-xs flex flex-col items-center gap-2">
-                  <ShieldAlert size={24} className="text-purple-400/50" />
-                  No analysis run yet. Draw shapes on canvas and click Analyze!
+                <div className="text-center py-6 text-gray-400 text-xs flex flex-col items-center gap-3 p-4 rounded-xl border border-white/5 bg-black/20">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div className="flex flex-col gap-1 max-w-[260px]">
+                    <span className="font-semibold text-white text-xs">Ready for Architecture Review</span>
+                    <span className="text-[11px] text-gray-400 leading-relaxed">
+                      Draw components on the whiteboard, then click Analyze to evaluate bottlenecks, failure modes, and missing layers.
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 justify-center pt-1">
+                    {["Event Bus", "Redis Cache", "Auth Service"].map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setActiveTab('prompt');
+                          setAiPrompt(`Add a ${tag} microservice architecture`);
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-purple-300 font-mono active:scale-95 transition-all"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

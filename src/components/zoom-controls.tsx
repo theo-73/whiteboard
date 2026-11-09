@@ -48,20 +48,20 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
 
   return (
     <div 
-      className="fixed bottom-16 right-3 md:bottom-4 md:right-4 flex items-center glass p-1 z-40"
+      className="fixed bottom-16 right-3 md:bottom-4 md:right-4 flex items-center glass p-1 z-40 select-none shadow-lg backdrop-blur-md"
       style={{ borderRadius: '100px', border: '1px solid var(--border)' }}
     >
       <button 
         onClick={handleZoomOut}
         aria-label="Zoom out"
-        data-tooltip="Zoom out"
-        className="tooltip p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        data-tooltip="Zoom out (-)"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <Minus size={16} />
+        <Minus size={15} />
       </button>
       
       <div 
-        className="px-2 text-xs font-medium min-w-[3rem] text-center"
+        className="px-2 text-xs font-semibold min-w-[3.25rem] text-center font-mono tabular-nums tracking-tight select-none"
         style={{ color: 'var(--text-primary)' }}
       >
         {zoom}%
@@ -70,10 +70,10 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
       <button 
         onClick={handleZoomIn}
         aria-label="Zoom in"
-        data-tooltip="Zoom in"
-        className="tooltip p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        data-tooltip="Zoom in (+)"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <Plus size={16} />
+        <Plus size={15} />
       </button>
 
       <div 
@@ -84,10 +84,10 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
       <button 
         onClick={handleZoomFit}
         aria-label="Fit to screen"
-        data-tooltip="Fit to screen"
-        className="tooltip p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        data-tooltip="Fit to screen (Shift+1)"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <Maximize2 size={16} />
+        <Maximize2 size={14} />
       </button>
     </div>
   );
