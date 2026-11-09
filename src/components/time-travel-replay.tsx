@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, SkipBack, SkipForward, History, X } from 'lucide-react';
 import { Editor } from 'tldraw';
+import { useAppStore } from '@/store/app-store';
 
 interface TimeTravelReplayProps {
   editor: Editor | null;
@@ -34,6 +35,12 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
           type: s.type,
           x: s.x,
           y: s.y,
+          rotation: s.rotation,
+          parentId: s.parentId,
+          index: s.index,
+          isLocked: s.isLocked,
+          opacity: s.opacity,
+          meta: s.meta,
           props: s.props,
         }));
 
@@ -53,6 +60,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
 
     return () => {
       unlisten();
+      useAppStore.getState().setIsReplaying(false);
     };
   }, [editor, isReplaying]);
 
@@ -66,13 +74,15 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
       if (!snapshot) return;
 
       try {
-        const currentShapeIds = Array.from(editor.getCurrentPageShapeIds());
-        if (currentShapeIds.length > 0) {
-          editor.deleteShapes(currentShapeIds);
-        }
-        if (snapshot.shapes.length > 0) {
-          editor.createShapes(snapshot.shapes as unknown as Parameters<typeof editor.createShapes>[0]);
-        }
+        editor.store.mergeRemoteChanges(() => {
+          const currentShapeIds = Array.from(editor.getCurrentPageShapeIds());
+          if (currentShapeIds.length > 0) {
+            editor.deleteShapes(currentShapeIds);
+          }
+          if (snapshot.shapes.length > 0) {
+            editor.createShapes(snapshot.shapes as unknown as Parameters<typeof editor.createShapes>[0]);
+          }
+        });
       } catch (err) {
         console.error('Error applying snapshot step:', err);
       }
@@ -89,9 +99,16 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
       type: s.type,
       x: s.x,
       y: s.y,
+      rotation: s.rotation,
+      parentId: s.parentId,
+      index: s.index,
+      isLocked: s.isLocked,
+      opacity: s.opacity,
+      meta: s.meta,
       props: s.props,
     }));
 
+    useAppStore.getState().setIsReplaying(true);
     setIsReplaying(true);
     setCurrentStep(0);
     loadSnapshotStep(0);
@@ -100,22 +117,33 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
   const handleExitReplay = () => {
     setIsPlaying(false);
     if (playTimerRef.current) clearInterval(playTimerRef.current);
-    setIsReplaying(false);
 
-    // Restore live snapshot
-    if (editor && liveSnapshotRef.current) {
+    // Restore live state: pull from live multiplayer records if available, otherwise restore captured snapshot
+    if (editor) {
       try {
-        const currentShapeIds = Array.from(editor.getCurrentPageShapeIds());
-        if (currentShapeIds.length > 0) {
-          editor.deleteShapes(currentShapeIds);
-        }
-        if (liveSnapshotRef.current.length > 0) {
-          editor.createShapes(liveSnapshotRef.current as unknown as Parameters<typeof editor.createShapes>[0]);
-        }
+        const getLiveRecords = useAppStore.getState().getLiveRecords;
+        const liveRecords = getLiveRecords ? (getLiveRecords() as Array<{ id: string; typeName: string }>) : null;
+
+        editor.store.mergeRemoteChanges(() => {
+          const currentShapeIds = Array.from(editor.getCurrentPageShapeIds());
+          if (currentShapeIds.length > 0) {
+            editor.deleteShapes(currentShapeIds);
+          }
+
+          if (liveRecords && liveRecords.length > 0) {
+            editor.store.put(liveRecords as Parameters<typeof editor.store.put>[0]);
+          } else if (liveSnapshotRef.current && liveSnapshotRef.current.length > 0) {
+            editor.createShapes(liveSnapshotRef.current as unknown as Parameters<typeof editor.createShapes>[0]);
+          }
+        });
+        editor.markHistoryStoppingPoint();
       } catch (err) {
         console.error('Error restoring live snapshot:', err);
       }
     }
+
+    setIsReplaying(false);
+    useAppStore.getState().setIsReplaying(false);
   };
 
   // Playback timer loop
@@ -146,7 +174,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
       <button
         onClick={handleStartReplay}
         disabled={history.length === 0}
-        className="tooltip fixed bottom-4 left-20 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium glass border hover:bg-white/10 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip fixed bottom-16 left-24 md:bottom-4 md:left-24 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium glass border hover:bg-white/10 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         aria-label="Replay step-by-step diagram evolution"
         data-tooltip="Replay step-by-step diagram evolution"
@@ -159,8 +187,8 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
 
   return (
     <div 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass px-5 py-3 rounded-2xl border shadow-2xl flex items-center gap-4 animate-slide-up"
-      style={{ borderColor: 'var(--border)', minWidth: '420px' }}
+      className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 z-50 glass px-4 md:px-5 py-2.5 md:py-3 rounded-2xl border shadow-2xl flex items-center gap-2 md:gap-4 animate-slide-up max-w-[95vw] md:max-w-none"
+      style={{ borderColor: 'var(--border)', minWidth: 'min(95vw, 420px)' }}
     >
       <div className="flex items-center gap-2">
         <History size={16} className="text-purple-400 animate-spin-slow" />

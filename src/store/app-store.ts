@@ -78,6 +78,12 @@ interface AppState {
   addGhostShapeId: (id: string) => void;
   clearGhostShapeIds: () => void;
 
+  // Replay Mode (protects multiplayer Yjs synchronization from spectator scrubbing)
+  isReplaying: boolean;
+  setIsReplaying: (isReplaying: boolean) => void;
+  getLiveRecords?: () => unknown[];
+  setGetLiveRecords: (fn: (() => unknown[]) | undefined) => void;
+
   // Undo/Redo
   canUndo: boolean;
   canRedo: boolean;
@@ -168,6 +174,12 @@ export const useAppStore = create<AppState>((set) => ({
   setGhostShapeIds: (ids) => set({ ghostShapeIds: ids }),
   addGhostShapeId: (id) => set((state) => ({ ghostShapeIds: [...state.ghostShapeIds, id] })),
   clearGhostShapeIds: () => set({ ghostShapeIds: [] }),
+
+  // Replay Mode
+  isReplaying: false,
+  setIsReplaying: (isReplaying) => set({ isReplaying }),
+  getLiveRecords: undefined,
+  setGetLiveRecords: (fn) => set({ getLiveRecords: fn }),
 
   // Undo/Redo
   canUndo: false,

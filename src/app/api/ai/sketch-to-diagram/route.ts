@@ -1,74 +1,32 @@
 import { NextResponse } from 'next/server';
-import { getStroke } from 'perfect-freehand';
-
-interface StrokeInput {
-  points: Array<[number, number]>;
-}
+import { classifyStrokesToShapes, type StrokeInput } from '@/lib/sketch-analysis';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anonymous';
+    const rateCheck = checkRateLimit(`sketch-to-diagram:${ip}`, 45, 60000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait a moment before trying again.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateCheck.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const strokes: StrokeInput[] = body?.strokes || [];
     const context = body?.context || 'Architecture sketch';
 
-    // Run perfect-freehand stroke vectorization
-    const vectorizedStrokes = strokes.map((s) => {
-      if (!s.points || s.points.length === 0) return [];
-      return getStroke(s.points, { size: 8, thinning: 0.5, smoothing: 0.5 });
-    });
-
-    // Estimate bounding box & geometry shape heuristics
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    strokes.forEach((s) => {
-      s.points.forEach(([x, y]) => {
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      });
-    });
-
-    if (minX === Infinity) {
-      minX = 100;
-      minY = 100;
-      maxX = 300;
-      maxY = 250;
-    }
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const isCircular = Math.abs(width - height) < 30;
-
-    const shapeType = isCircular ? 'ellipse' : 'rectangle';
-    const labelText = context.includes('database') ? 'Database' : 'Service Node';
-
-    const mermaidCode = `graph TD\n    NodeA[${labelText}] --> NodeB[Target Service]`;
-
-    const shapes = [
-      {
-        type: 'geo',
-        x: Math.round(minX),
-        y: Math.round(minY),
-        props: {
-          geo: shapeType,
-          w: Math.max(120, Math.round(width)),
-          h: Math.max(80, Math.round(height)),
-          text: labelText,
-          color: 'violet',
-          fill: 'semi',
-        },
-      },
-    ];
+    const result = classifyStrokesToShapes(strokes, context);
 
     return NextResponse.json({
       success: true,
-      vectorizedCount: vectorizedStrokes.length,
-      mermaidCode,
-      shapes,
+      ...result,
     });
   } catch (error) {
     console.error('Sketch-to-diagram error:', error);

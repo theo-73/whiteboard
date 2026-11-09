@@ -11,14 +11,38 @@ export async function GET(
 
     return NextResponse.json({
       room,
-      members: [
-        { id: 'usr-1', name: 'Alice', role: 'owner' },
-        { id: 'usr-2', name: 'Bob', role: 'editor' },
-      ],
+      members: [],
     });
   } catch (error) {
     console.error('Fetch room error:', error);
     return NextResponse.json({ error: 'Failed to fetch room' }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const name = body?.name;
+    const snapshotData = body?.snapshotData || body?.snapshot_data;
+
+    const updates: { name?: string; snapshot_data?: string } = {};
+    if (name !== undefined) updates.name = name;
+    if (snapshotData !== undefined) {
+      updates.snapshot_data = typeof snapshotData === 'string' ? snapshotData : JSON.stringify(snapshotData);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await PersistenceService.updateRoom(id, updates);
+    }
+
+    return NextResponse.json({ success: true, roomId: id });
+  } catch (error) {
+    console.error('Update room snapshot error:', error);
+    return NextResponse.json({ error: 'Failed to update snapshot' }, { status: 500 });
   }
 }
 

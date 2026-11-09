@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Editor } from 'tldraw';
 import { useContextStore } from '@/store/context-store';
 import { FileText, Link as LinkIcon, Code2, Paperclip } from 'lucide-react';
@@ -12,6 +12,8 @@ interface ContextBadgesProps {
 interface BadgePosition {
   shapeId: string;
   shapeLabel: string;
+  pageX: number;
+  pageY: number;
   x: number;
   y: number;
   notesCount: number;
@@ -24,6 +26,23 @@ interface BadgePosition {
 export function ContextBadges({ editor }: ContextBadgesProps) {
   const { contexts, openContextPanel } = useContextStore();
   const [badges, setBadges] = useState<BadgePosition[]>([]);
+  const badgeElementsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const badgesRef = useRef<BadgePosition[]>([]);
+
+  const syncBadgeDomTransforms = useCallback(() => {
+    if (!editor) return;
+    badgesRef.current.forEach((b: BadgePosition) => {
+      const el = badgeElementsRef.current.get(b.shapeId);
+      if (el) {
+        try {
+          const screenPos = editor.pageToViewport({ x: b.pageX, y: b.pageY });
+          el.style.transform = `translate3d(${screenPos.x}px, ${screenPos.y}px, 0)`;
+        } catch {
+          // ignore
+        }
+      }
+    });
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -46,20 +65,22 @@ export function ContextBadges({ editor }: ContextBadgesProps) {
 
         if (totalCount === 0) return;
 
-        const props = (s.props || {}) as { w?: number; h?: number; text?: string };
-        const w = props.w || 160;
+        const bounds = editor.getShapePageBounds(s.id);
+        const props = (s.props || {}) as { text?: string; w?: number };
+        const label = props.text?.trim() || (s.type === 'text' ? 'Text' : 'Component');
 
-        // Calculate top right of shape in page coordinates
-        const pageX = s.x + w - 12;
-        const pageY = s.y - 12;
+        // Calculate top right of shape in page coordinates using true bounds
+        const pageX = bounds ? bounds.maxX - 12 : s.x + (props.w || 160) - 12;
+        const pageY = bounds ? bounds.minY - 12 : s.y - 12;
 
         try {
           const screenPos = editor.pageToViewport({ x: pageX, y: pageY });
-          const label = props.text?.trim() || (s.type === 'text' ? 'Text' : 'Component');
 
           newBadges.push({
             shapeId: shapeIdStr,
             shapeLabel: label,
+            pageX,
+            pageY,
             x: screenPos.x,
             y: screenPos.y,
             notesCount,
@@ -73,17 +94,22 @@ export function ContextBadges({ editor }: ContextBadgesProps) {
         }
       });
 
+      badgesRef.current = newBadges;
       setBadges(newBadges);
+      syncBadgeDomTransforms();
     };
 
     updateBadges();
 
-    const unlisten = editor.store.listen(updateBadges, { scope: 'all' });
+    const unlisten = editor.store.listen(() => {
+      syncBadgeDomTransforms();
+      updateBadges();
+    }, { scope: 'all' });
 
     return () => {
       unlisten();
     };
-  }, [editor, contexts]);
+  }, [editor, contexts, syncBadgeDomTransforms]);
 
   if (!editor || badges.length === 0) return null;
 
@@ -92,6 +118,10 @@ export function ContextBadges({ editor }: ContextBadgesProps) {
       {badges.map((b) => (
         <button
           key={b.shapeId}
+          ref={(el) => {
+            if (el) badgeElementsRef.current.set(b.shapeId, el);
+            else badgeElementsRef.current.delete(b.shapeId);
+          }}
           onClick={(e) => {
             e.stopPropagation();
             openContextPanel(b.shapeId, b.shapeLabel);

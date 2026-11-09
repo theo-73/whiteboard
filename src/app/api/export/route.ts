@@ -8,6 +8,8 @@ interface CanvasShapeInput {
     text?: string;
     w?: number;
     h?: number;
+    start?: { boundShapeId?: string };
+    end?: { boundShapeId?: string };
   };
 }
 
@@ -20,25 +22,58 @@ export async function POST(request: Request) {
 
     const nodeLines: string[] = [];
     const edgeLines: string[] = [];
+    const shapeIdToNodeId = new Map<string, string>();
+    let nodeIndex = 1;
 
-    shapes.forEach((s, idx) => {
-      if (s.type === 'geo') {
-        const text = s.props?.text || `Node_${idx + 1}`;
-        const shapeType = s.props?.geo === 'ellipse' ? `((${text}))` : `[${text}]`;
-        nodeLines.push(`    N${idx + 1}${shapeType}`);
-      } else if (s.type === 'arrow') {
-        const sourceIdx = Math.max(1, idx);
-        const targetIdx = sourceIdx + 1;
-        edgeLines.push(`    N${sourceIdx} --> N${targetIdx}`);
+    // 1. Process all geometric, text, and note shapes into Mermaid nodes
+    shapes.forEach((s) => {
+      if ((s.type === 'geo' || s.type === 'text' || s.type === 'note') && s.id) {
+        const nodeId = `N${nodeIndex++}`;
+        shapeIdToNodeId.set(s.id, nodeId);
+
+        const rawText = s.props?.text?.trim() || (s.type === 'text' ? 'Text' : 'Component');
+        const cleanText = rawText.replace(/[[\](){}"]/g, '');
+
+        let shapeSyntax = `[${cleanText}]`;
+        if (s.props?.geo === 'ellipse' || s.props?.geo === 'cylinder') {
+          shapeSyntax = s.props.geo === 'cylinder' ? `[(${cleanText})]` : `((${cleanText}))`;
+        } else if (s.props?.geo === 'rhombus') {
+          shapeSyntax = `{${cleanText}}`;
+        }
+
+        nodeLines.push(`    ${nodeId}${shapeSyntax}`);
       }
     });
 
+    // 2. Process arrow connections using actual bound shape references
+    shapes.forEach((s) => {
+      if (s.type === 'arrow') {
+        const sourceShapeId = s.props?.start?.boundShapeId;
+        const targetShapeId = s.props?.end?.boundShapeId;
+
+        if (
+          sourceShapeId &&
+          targetShapeId &&
+          shapeIdToNodeId.has(sourceShapeId) &&
+          shapeIdToNodeId.has(targetShapeId)
+        ) {
+          const sourceNode = shapeIdToNodeId.get(sourceShapeId)!;
+          const targetNode = shapeIdToNodeId.get(targetShapeId)!;
+          const label = s.props?.text?.trim() ? `|${s.props.text.trim()}|` : '';
+          edgeLines.push(`    ${sourceNode} -->${label} ${targetNode}`);
+        }
+      }
+    });
+
+    // Fallback template if diagram has no connected shapes
     if (nodeLines.length === 0) {
       nodeLines.push('    A[Client App] --> B(API Gateway)');
       nodeLines.push('    B --> C[(PostgreSQL DB)]');
     }
 
-    const mermaidCode = `graph TD\n${nodeLines.join('\n')}\n${edgeLines.join('\n')}`;
+    const mermaidCode = `graph TD\n${nodeLines.join('\n')}${
+      edgeLines.length > 0 ? '\n' + edgeLines.join('\n') : ''
+    }`;
 
     return NextResponse.json({
       success: true,
@@ -46,7 +81,6 @@ export async function POST(request: Request) {
       roomId,
       shapeCount: shapes.length,
       mermaidCode,
-      exportUrl: `/api/export/download/${roomId}?format=${format}`,
     });
   } catch (error) {
     console.error('Export canvas error:', error);

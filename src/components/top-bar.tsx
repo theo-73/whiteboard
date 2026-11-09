@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { Sparkles, Link as LinkIcon, Sun, Moon, Download, Check, FileCode, Upload, Eye, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Link as LinkIcon, Sun, Moon, Download, Check, FileCode, Upload, Eye, Image as ImageIcon, Volume2, VolumeX } from 'lucide-react';
+import { useUiSounds } from '@/lib/use-ui-sounds';
 import { useAppStore } from '@/store/app-store';
-import { Editor, createShapeId, TLShapeId } from 'tldraw';
+import { Editor } from 'tldraw';
 import { parseAndCompileMermaid } from '@/lib/mermaid-compiler';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,7 +14,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ editor }: TopBarProps) {
-  const { theme, toggleTheme, connectedUsers, followingUserId, setFollowingUserId } = useAppStore();
+  const { theme, toggleTheme, currentUser, connectedUsers, followingUserId, setFollowingUserId, currentRoom, setCurrentRoom } = useAppStore();
+  const { enabled: soundsEnabled, toggleSounds } = useUiSounds();
   const [copied, setCopied] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
@@ -21,13 +23,43 @@ export function TopBar({ editor }: TopBarProps) {
   const [importCode, setImportCode] = useState('graph TD\n    A[Web App] --> B(API Gateway)\n    B --> C[(Postgres DB)]');
   const [copiedMermaid, setCopiedMermaid] = useState(false);
 
-  // Dummy users for demo
-  const mockUsers = connectedUsers?.length > 0 ? connectedUsers : [
-    { id: '1', name: 'Alice', color: '#FF5733' },
-    { id: '2', name: 'Bob', color: '#33FF57' },
-    { id: '3', name: 'Charlie', color: '#3357FF' },
-    { id: '4', name: 'Dave', color: '#F333FF' },
+  const [roomTitle, setRoomTitle] = useState(currentRoom?.name || 'Architecture Whiteboard');
+  const [prevRoomName, setPrevRoomName] = useState(currentRoom?.name);
+  const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  if (currentRoom?.name && currentRoom.name !== prevRoomName) {
+    setPrevRoomName(currentRoom.name);
+    setRoomTitle(currentRoom.name);
+  }
+
+  const handleTitleChange = (newTitle: string) => {
+    setRoomTitle(newTitle);
+    if (!currentRoom) return;
+
+    if (titleTimeoutRef.current) {
+      clearTimeout(titleTimeoutRef.current);
+    }
+
+    titleTimeoutRef.current = setTimeout(async () => {
+      setCurrentRoom({ ...currentRoom, name: newTitle });
+      try {
+        await fetch(`/api/rooms/${currentRoom.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTitle }),
+        });
+      } catch (err) {
+        console.warn('Failed to persist room name:', err);
+      }
+    }, 800);
+  };
+
+  // Active users: current user + connected multiplayer collaborators
+  const activeUsers = [
+    { id: currentUser.id, name: `${currentUser.name} (You)`, color: currentUser.color, isSelf: true },
+    ...connectedUsers.filter((u) => u.id !== currentUser.id),
   ];
+  const mockUsers = activeUsers;
   
   const displayUsers = mockUsers.slice(0, 4);
   const overflowCount = Math.max(0, mockUsers.length - 4);
@@ -106,14 +138,26 @@ export function TopBar({ editor }: TopBarProps) {
         const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
         img.onload = () => {
+          const dpr = Math.max(window.devicePixelRatio || 1, 2);
+          const baseWidth = img.width || svgRes.width || 1200;
+          const baseHeight = img.height || svgRes.height || 800;
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.width || 1200;
-          canvas.height = img.height || 800;
+          canvas.width = baseWidth * dpr;
+          canvas.height = baseHeight * dpr;
+          canvas.style.width = `${baseWidth}px`;
+          canvas.style.height = `${baseHeight}px`;
+
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.fillStyle = '#09090b';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            ctx.scale(dpr, dpr);
+            const computedBg = getComputedStyle(document.documentElement).getPropertyValue('--background').trim() || '#09090b';
+            ctx.fillStyle = computedBg;
+            ctx.fillRect(0, 0, baseWidth, baseHeight);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, baseWidth, baseHeight);
+
             const pngUrl = canvas.toDataURL('image/png');
             const a = document.createElement('a');
             a.href = pngUrl;
@@ -142,6 +186,7 @@ export function TopBar({ editor }: TopBarProps) {
   };
 
   const handleToggleFollowUser = (userId: string) => {
+    if (userId === currentUser.id) return;
     if (followingUserId === userId) {
       setFollowingUserId(null);
     } else {
@@ -176,9 +221,20 @@ export function TopBar({ editor }: TopBarProps) {
           
           <input 
             type="text" 
-            defaultValue="Architecture Whiteboard"
+            value={roomTitle}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            aria-label="Whiteboard Room Title"
             className="bg-transparent border-none outline-none font-semibold hover:bg-white/5 px-2.5 py-1 rounded-lg transition-colors text-sm md:text-base hidden md:block text-gray-200 focus:text-white"
           />
+
+          {(!process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY || process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY === 'pk_dev_placeholder_key') && (
+            <span 
+              className="hidden lg:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border text-amber-400 border-amber-500/30 bg-amber-500/10"
+              title="Running in local offline mode without remote Liveblocks sync"
+            >
+              Local Solo Mode
+            </span>
+          )}
 
           {followingUserId && (
             <button 
@@ -245,6 +301,16 @@ export function TopBar({ editor }: TopBarProps) {
             Export / Import
           </button>
           
+          {/* Sound Toggle */}
+          <button 
+            onClick={toggleSounds}
+            aria-label={soundsEnabled ? "Disable UI sounds" : "Enable UI sounds"}
+            data-tooltip={soundsEnabled ? "Mute sounds" : "Unmute sounds"}
+            className="tooltip p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {soundsEnabled ? <Volume2 size={18} className="text-purple-400" /> : <VolumeX size={18} />}
+          </button>
+
           {/* Theme Toggle */}
           <button 
             onClick={toggleTheme}

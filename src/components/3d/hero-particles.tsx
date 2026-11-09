@@ -1,40 +1,96 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Points, PointMaterial } from "@react-three/drei";
 import * as THREE from "three";
+
+function isWebGLSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+class WebGLErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("WebGL initialization failed, falling back to CSS background:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+const PARTICLE_COUNT = 250;
+
+function generateInitialData() {
+  const pos = new Float32Array(PARTICLE_COUNT * 3);
+  const vel = new Float32Array(PARTICLE_COUNT * 3);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Deterministic pseudo-random distribution
+    const seedX = Math.sin(i * 12.9898) * 43758.5453;
+    const randX = seedX - Math.floor(seedX);
+    const seedY = Math.sin(i * 78.233) * 43758.5453;
+    const randY = seedY - Math.floor(seedY);
+    const seedZ = Math.sin(i * 45.164) * 43758.5453;
+    const randZ = seedZ - Math.floor(seedZ);
+
+    pos[i * 3] = (randX - 0.5) * 15;
+    pos[i * 3 + 1] = (randY - 0.5) * 15;
+    pos[i * 3 + 2] = (randZ - 0.5) * 5 - 2;
+
+    vel[i * 3] = (randX - 0.5) * 0.02;
+    vel[i * 3 + 1] = (randY - 0.5) * 0.02;
+    vel[i * 3 + 2] = (randZ - 0.5) * 0.02;
+  }
+  return { pos, vel };
+}
+
+const { pos: INITIAL_POSITIONS, vel: INITIAL_VELOCITIES } = generateInitialData();
 
 function Particles() {
   const ref = useRef<THREE.Points>(null);
   const { mouse, viewport } = useThree();
 
-  const particleCount = 250;
+  const particleCount = PARTICLE_COUNT;
   
-  const positions = useMemo(() => {
-    const positions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 15; // x
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 15; // y
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 5 - 2; // z
-    }
-    return positions;
-  }, []);
-
-  const velocities = useMemo(() => {
-    const velocities = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      velocities[i * 3] = (Math.random() - 0.5) * 0.02;
-      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.02;
-      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.02;
-    }
-    return velocities;
-  }, []);
-
-  const originalPositions = useMemo(() => new Float32Array(positions), [positions]);
+  const positions = useMemo(() => new Float32Array(INITIAL_POSITIONS), []);
+  const velocitiesRef = useRef<Float32Array | null>(null);
+  if (velocitiesRef.current == null) {
+    velocitiesRef.current = new Float32Array(INITIAL_VELOCITIES);
+  }
+  const originalPositionsRef = useRef<Float32Array | null>(null);
+  if (originalPositionsRef.current == null) {
+    originalPositionsRef.current = new Float32Array(INITIAL_POSITIONS);
+  }
 
   useFrame((state, delta) => {
     if (!ref.current) return;
+    const velocities = velocitiesRef.current;
+    const originalPositions = originalPositionsRef.current;
+    if (!velocities || !originalPositions) return;
     
     // Convert normalized mouse coordinates to world space coordinates
     const targetX = (mouse.x * viewport.width) / 2;
@@ -92,11 +148,30 @@ function Particles() {
 }
 
 export default function HeroParticles() {
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setSupported(isWebGLSupported());
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const cssFallback = (
+    <div className="absolute inset-0 bg-gradient-to-tr from-purple-900/10 via-transparent to-blue-900/10 pointer-events-none" />
+  );
+
+  if (!supported) {
+    return cssFallback;
+  }
+
   return (
     <div className="absolute inset-0 w-full h-full pointer-events-none z-[1]">
-      <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-        <Particles />
-      </Canvas>
+      <WebGLErrorBoundary fallback={cssFallback}>
+        <Canvas camera={{ position: [0, 0, 5], fov: 75 }} gl={{ powerPreference: "low-power" }}>
+          <Particles />
+        </Canvas>
+      </WebGLErrorBoundary>
     </div>
   );
 }

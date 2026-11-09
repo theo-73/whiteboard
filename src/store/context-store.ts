@@ -76,11 +76,56 @@ function loadContextsFromStorage(roomId: string): Record<string, ShapeContext> {
 
 function saveContextsToStorage(roomId: string, contexts: Record<string, ShapeContext>) {
   if (typeof window === 'undefined') return;
+  const key = `synapseboard_context_${roomId}`;
   try {
-    localStorage.setItem(`synapseboard_context_${roomId}`, JSON.stringify(contexts));
+    localStorage.setItem(key, JSON.stringify(contexts));
   } catch (err) {
-    console.error('Failed to save shape contexts:', err);
+    console.warn('Quota exceeded while saving shape contexts, stripping heavy binary payloads:', err);
+    try {
+      // Graceful fallback: preserve all notes, links, snippets, and file metadata without heavy Base64 dataUrls
+      const lightweightCopy: Record<string, ShapeContext> = {};
+      Object.entries(contexts).forEach(([sId, ctx]) => {
+        lightweightCopy[sId] = {
+          ...ctx,
+          files: ctx.files.map((f) => ({
+            id: f.id,
+            name: f.name,
+            size: f.size,
+            type: f.type,
+          })),
+        };
+      });
+      localStorage.setItem(key, JSON.stringify(lightweightCopy));
+    } catch (fallbackErr) {
+      console.error('Failed to save shape contexts to localStorage:', fallbackErr);
+    }
   }
+}
+
+const syncTimeouts = new Map<string, NodeJS.Timeout>();
+
+function syncShapeContextToBackend(roomId: string, shapeId: string, ctx: ShapeContext) {
+  if (typeof window === 'undefined' || !roomId || !shapeId) return;
+  const key = `${roomId}:${shapeId}`;
+  const existing = syncTimeouts.get(key);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    fetch(`/api/rooms/${roomId}/context`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shapeId,
+        notes: ctx.notes,
+        links: ctx.links,
+        codeSnippets: ctx.codeSnippets,
+        files: ctx.files,
+      }),
+    }).catch((err) => console.warn('Context sync error:', err));
+    syncTimeouts.delete(key);
+  }, 800);
+
+  syncTimeouts.set(key, timer);
 }
 
 export const useContextStore = create<ContextState>((set, get) => ({
@@ -93,6 +138,21 @@ export const useContextStore = create<ContextState>((set, get) => ({
   setRoomId: (roomId: string) => {
     const loaded = loadContextsFromStorage(roomId);
     set({ roomId, contexts: loaded });
+
+    if (roomId && typeof window !== 'undefined') {
+      fetch(`/api/rooms/${roomId}/context`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.contexts && typeof data.contexts === 'object') {
+            set((state) => {
+              const merged = { ...state.contexts, ...data.contexts };
+              saveContextsToStorage(roomId, merged);
+              return { contexts: merged };
+            });
+          }
+        })
+        .catch((e) => console.warn('Failed to fetch remote shape contexts:', e));
+    }
   },
 
   openContextPanel: (shapeId: string, shapeLabel?: string) => {
@@ -119,6 +179,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         [shapeId]: { ...current, notes },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -132,6 +193,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         [shapeId]: { ...current, links: [...current.links, newLink] },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -148,6 +210,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -161,6 +224,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         [shapeId]: { ...current, codeSnippets: [...current.codeSnippets, newSnippet] },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -177,6 +241,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -184,12 +249,15 @@ export const useContextStore = create<ContextState>((set, get) => ({
   addFile: (shapeId: string, file) => {
     set((state) => {
       const current = state.contexts[shapeId] || defaultContext(shapeId);
-      const newFile: ContextFile = { ...file, id: Date.now().toString() };
+      // Cap dataUrl to 250KB to preserve localStorage headroom
+      const safeDataUrl = file.dataUrl && file.dataUrl.length < 250000 ? file.dataUrl : undefined;
+      const newFile: ContextFile = { ...file, dataUrl: safeDataUrl, id: Date.now().toString() };
       const updated = {
         ...state.contexts,
         [shapeId]: { ...current, files: [...current.files, newFile] },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },
@@ -206,6 +274,7 @@ export const useContextStore = create<ContextState>((set, get) => ({
         },
       };
       saveContextsToStorage(state.roomId, updated);
+      syncShapeContextToBackend(state.roomId, shapeId, updated[shapeId]);
       return { contexts: updated };
     });
   },

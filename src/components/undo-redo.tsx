@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Undo, Redo } from 'lucide-react';
 import { Editor } from 'tldraw';
 import { useAppStore } from '@/store/app-store';
@@ -31,17 +31,17 @@ export function UndoRedo({ editor }: UndoRedoProps) {
     };
   }, [editor, setCanUndo, setCanRedo]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (editor && canUndo) {
       editor.undo();
     }
-  };
+  }, [editor, canUndo]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (editor && canRedo) {
       editor.redo();
     }
-  };
+  }, [editor, canRedo]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -58,11 +58,11 @@ export function UndoRedo({ editor }: UndoRedoProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo, handleUndo, handleRedo]);
+  }, [handleUndo, handleRedo]);
 
   return (
     <div 
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center glass p-1 z-40"
+      className="fixed bottom-16 left-3 md:bottom-4 md:left-4 flex items-center glass p-1 z-40"
       style={{ borderRadius: '100px', border: '1px solid var(--border)' }}
     >
       <button 

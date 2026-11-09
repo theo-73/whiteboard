@@ -1,4 +1,4 @@
-import { Editor, TLShape, TLShapeId } from 'tldraw';
+import type { Editor, TLShapeId } from 'tldraw';
 
 export interface LayoutNode {
   id: TLShapeId;
@@ -121,6 +121,82 @@ export interface ArrowUpdate {
 }
 
 /**
+ * Assigns nodes to topological layers using Kahn's BFS algorithm for DAGs.
+ * Handles cycles and detached nodes gracefully.
+ */
+export function computeTopologicalLayers(
+  nodes: Map<string, LayoutNode>,
+  inDegrees: Map<string, number>,
+  adjList: Map<string, string[]>
+): string[][] {
+  const nodeArray = Array.from(nodes.values());
+  const nodeLayerMap = new Map<string, number>();
+  const remainingInDegrees = new Map<string, number>();
+  const queue: string[] = [];
+
+  nodes.forEach((_, id) => {
+    const deg = inDegrees.get(id) || 0;
+    remainingInDegrees.set(id, deg);
+    if (deg === 0) {
+      queue.push(id);
+      nodeLayerMap.set(id, 0);
+    }
+  });
+
+  // If graph is cyclic or has no explicit root, seed queue with first node
+  if (queue.length === 0 && nodeArray.length > 0) {
+    const seed = nodeArray[0].id.toString();
+    queue.push(seed);
+    nodeLayerMap.set(seed, 0);
+  }
+
+  // Process nodes in topological order using BFS
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    visited.add(currId);
+    const currLayer = nodeLayerMap.get(currId) || 0;
+    const neighbors = adjList.get(currId) || [];
+
+    neighbors.forEach((nextId) => {
+      const existingLayer = nodeLayerMap.get(nextId) ?? -1;
+      if (currLayer + 1 > existingLayer) {
+        nodeLayerMap.set(nextId, currLayer + 1);
+      }
+      
+      const newDeg = (remainingInDegrees.get(nextId) || 1) - 1;
+      remainingInDegrees.set(nextId, newDeg);
+
+      if (newDeg <= 0 && !visited.has(nextId) && !queue.includes(nextId)) {
+        queue.push(nextId);
+      }
+    });
+  }
+
+  // Ensure all nodes have a layer assigned
+  nodeArray.forEach((node) => {
+    const id = node.id.toString();
+    if (!nodeLayerMap.has(id)) {
+      nodeLayerMap.set(id, 0);
+    }
+  });
+
+  // Group nodes into layers
+  const layerGroups = new Map<number, string[]>();
+  nodeArray.forEach((node) => {
+    const id = node.id.toString();
+    const layer = nodeLayerMap.get(id) || 0;
+    if (!layerGroups.has(layer)) {
+      layerGroups.set(layer, []);
+    }
+    layerGroups.get(layer)!.push(id);
+  });
+
+  const sortedLayerKeys = Array.from(layerGroups.keys()).sort((a, b) => a - b);
+  return sortedLayerKeys.map((key) => layerGroups.get(key)!);
+}
+
+/**
  * Computes a clean hierarchical DAG & Grid layout to fix visual mess
  */
 export function computeAutoLayout(editor: Editor): {
@@ -140,40 +216,7 @@ export function computeAutoLayout(editor: Editor): {
   const centerX = viewportBounds.center.x;
   const centerY = viewportBounds.center.y;
 
-  const nodeArray = Array.from(nodes.values());
-
-  // Layer assignment using longest-path layering for DAGs
-  const nodeLayerMap = new Map<string, number>();
-
-  // Group nodes into layers
-  const layerGroups = new Map<number, string[]>();
-  nodeArray.forEach((node) => {
-    const idStr = node.id.toString();
-    const inDeg = inDegrees.get(idStr) || 0;
-    let layer = 0;
-    
-    if (inDeg > 0) {
-      // Find max layer of incoming predecessors + 1
-      let maxPredLayer = 0;
-      nodes.forEach((predNode) => {
-        const predId = predNode.id.toString();
-        const predNeighbors = adjList.get(predId) || [];
-        if (predNeighbors.includes(idStr)) {
-          maxPredLayer = Math.max(maxPredLayer, (nodeLayerMap.get(predId) || 0) + 1);
-        }
-      });
-      layer = maxPredLayer;
-    }
-    
-    nodeLayerMap.set(idStr, layer);
-    if (!layerGroups.has(layer)) {
-      layerGroups.set(layer, []);
-    }
-    layerGroups.get(layer)!.push(idStr);
-  });
-
-  const sortedLayerKeys = Array.from(layerGroups.keys()).sort((a, b) => a - b);
-  const layers: string[][] = sortedLayerKeys.map((key) => layerGroups.get(key)!);
+  const layers = computeTopologicalLayers(nodes, inDegrees, adjList);
 
   // Calculate layout coordinates
   const LAYER_SPACING_X = 260; // Horizontal gap between layers
@@ -272,6 +315,8 @@ export async function executeMessCleanup(editor: Editor, durationMs = 350): Prom
     targetX: number;
     targetY: number;
     startProp: Record<string, unknown>;
+    endProp: Record<string, unknown>;
+    hasEndBinding: boolean;
     startEndPtX: number;
     startEndPtY: number;
     targetEndPtX: number;
@@ -303,6 +348,8 @@ export async function executeMessCleanup(editor: Editor, durationMs = 350): Prom
       const curEnd = existingProps.end || { x: 0, y: 0 };
       const targetEndPt = (end as { x?: number; y?: number }) || { x: 0, y: 0 };
 
+      const hasEndBinding = (end as { type?: string })?.type === 'binding';
+
       arrowsToAnimate.push({
         id,
         startX: existing.x,
@@ -310,6 +357,8 @@ export async function executeMessCleanup(editor: Editor, durationMs = 350): Prom
         targetX,
         targetY,
         startProp: start,
+        endProp: end,
+        hasEndBinding,
         startEndPtX: curEnd.x || 0,
         startEndPtY: curEnd.y || 0,
         targetEndPtX: targetEndPt.x || 0,
@@ -349,7 +398,7 @@ export async function executeMessCleanup(editor: Editor, durationMs = 350): Prom
           props: {
             ...(editor.getShape(a.id)?.props as object),
             start: a.startProp,
-            end: {
+            end: a.hasEndBinding ? a.endProp : {
               type: 'point',
               x: Math.round(a.startEndPtX + (a.targetEndPtX - a.startEndPtX) * ease),
               y: Math.round(a.startEndPtY + (a.targetEndPtY - a.startEndPtY) * ease),
@@ -366,6 +415,7 @@ export async function executeMessCleanup(editor: Editor, durationMs = 350): Prom
         activeCleanupAnimationId = requestAnimationFrame(step);
       } else {
         activeCleanupAnimationId = null;
+        editor.markHistoryStoppingPoint();
         resolve(totalCount);
       }
     }

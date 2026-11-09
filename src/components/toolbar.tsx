@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MousePointer2, 
   Hand, 
@@ -12,21 +12,23 @@ import {
   Eraser, 
   Sparkles,
   Wand2,
-  FileText
+  FileText,
+  LucideIcon,
+  PenTool
 } from 'lucide-react';
 import { useAppStore, Tool } from '@/store/app-store';
 import { useContextStore } from '@/store/context-store';
 import { executeMessCleanup } from '@/lib/auto-layout';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { useUiSounds } from '@/lib/use-ui-sounds';
 
-import { Editor } from 'tldraw';
+import { Editor, GeoShapeGeoStyle } from 'tldraw';
 
 interface ToolbarProps {
   editor?: Editor | null;
 }
 
-const tools: { id: Tool; icon: React.ElementType; label: string }[] = [
+const tools: { id: Tool; icon: LucideIcon; label: string }[] = [
   { id: 'select', icon: MousePointer2, label: 'Select' },
   { id: 'hand', icon: Hand, label: 'Hand' },
   { id: 'draw', icon: Pen, label: 'Draw' },
@@ -37,7 +39,7 @@ const tools: { id: Tool; icon: React.ElementType; label: string }[] = [
   { id: 'eraser', icon: Eraser, label: 'Eraser' },
 ];
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0, x: -20 },
   visible: {
     opacity: 1,
@@ -51,7 +53,7 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: { 
     opacity: 1, 
@@ -64,7 +66,40 @@ export function Toolbar({ editor }: ToolbarProps) {
   const { activeTool, setActiveTool, aiPanelOpen, toggleAiPanel } = useAppStore();
   const { isContextPanelOpen, openContextPanel, closeContextPanel } = useContextStore();
   const [cleanedCount, setCleanedCount] = useState<number | null>(null);
+  const [convertingSketch, setConvertingSketch] = useState(false);
   const { playClick, playHover, playSuccess } = useUiSounds();
+
+  // Sync toolbar active state with native tldraw hotkeys (v, d, r, e, etc.)
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateActiveTool = () => {
+      const currentToolId = editor.getCurrentToolId();
+      let targetTool: Tool | undefined;
+
+      if (currentToolId === 'geo') {
+        const geoStyle = editor.getStyleForNextShape(GeoShapeGeoStyle);
+        targetTool = geoStyle === 'ellipse' ? 'ellipse' : 'rectangle';
+      } else {
+        const toolMap: Record<string, Tool> = {
+          select: 'select',
+          hand: 'hand',
+          draw: 'draw',
+          arrow: 'arrow',
+          text: 'text',
+          eraser: 'eraser',
+        };
+        targetTool = toolMap[currentToolId];
+      }
+
+      if (targetTool && targetTool !== activeTool) {
+        setActiveTool(targetTool);
+      }
+    };
+
+    const unlisten = editor.store.listen(updateActiveTool, { scope: 'session' });
+    return () => unlisten();
+  }, [editor, activeTool, setActiveTool]);
 
   const handleToolSelect = (toolId: Tool) => {
     playClick();
@@ -82,7 +117,11 @@ export function Toolbar({ editor }: ToolbarProps) {
         editor.setCurrentTool('draw');
         break;
       case 'rectangle':
+        editor.setStyleForNextShapes(GeoShapeGeoStyle, 'rectangle');
+        editor.setCurrentTool('geo');
+        break;
       case 'ellipse':
+        editor.setStyleForNextShapes(GeoShapeGeoStyle, 'ellipse');
         editor.setCurrentTool('geo');
         break;
       case 'arrow':
@@ -104,6 +143,58 @@ export function Toolbar({ editor }: ToolbarProps) {
     setCleanedCount(count);
     if (count > 0) playSuccess();
     setTimeout(() => setCleanedCount(null), 2000);
+  };
+
+  const handleConvertFreehandSketch = async () => {
+    if (!editor || convertingSketch) return;
+    playClick();
+
+    const selectedShapes = Array.from(editor.getSelectedShapes());
+    let targetDrawShapes = selectedShapes.filter((s) => s.type === 'draw');
+
+    if (targetDrawShapes.length === 0) {
+      targetDrawShapes = Array.from(editor.getCurrentPageShapes()).filter((s) => s.type === 'draw');
+    }
+
+    if (targetDrawShapes.length === 0) {
+      handleToolSelect('draw');
+      return;
+    }
+
+    setConvertingSketch(true);
+    try {
+      const strokes = targetDrawShapes.map((shape) => {
+        const props = shape.props as {
+          segments?: Array<{ points?: Array<{ x: number; y: number }> }>;
+        };
+        const points: Array<[number, number]> = [];
+        (props.segments || []).forEach((seg) => {
+          (seg.points || []).forEach((pt) => {
+            points.push([Math.round(shape.x + pt.x), Math.round(shape.y + pt.y)]);
+          });
+        });
+        return { id: shape.id.toString(), points };
+      });
+
+      const res = await fetch('/api/ai/sketch-to-diagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strokes }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.shapes && data.shapes.length > 0) {
+          editor.deleteShapes(targetDrawShapes.map((s) => s.id));
+          editor.createShapes(data.shapes);
+          playSuccess();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to convert sketch:', err);
+    } finally {
+      setConvertingSketch(false);
+    }
   };
 
   const handleToggleContext = () => {
@@ -149,7 +240,7 @@ export function Toolbar({ editor }: ToolbarProps) {
       aria-orientation="vertical"
       aria-label="Canvas Tools"
       onKeyDown={handleKeyDown}
-      className="fixed left-2 md:left-4 top-1/2 -translate-y-1/2 flex flex-row md:flex-col gap-1 md:gap-2 p-1.5 md:p-2 glass z-50 max-h-[80vh] overflow-x-auto md:overflow-y-auto border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+      className="fixed bottom-3 left-1/2 -translate-x-1/2 md:bottom-auto md:left-4 md:top-1/2 md:-translate-y-1/2 md:translate-x-0 flex flex-row md:flex-col gap-1 md:gap-2 p-1.5 md:p-2 glass z-50 max-w-[95vw] md:max-w-none max-h-[80vh] overflow-x-auto md:overflow-y-auto border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
       {tools.map((tool) => (
@@ -194,6 +285,27 @@ export function Toolbar({ editor }: ToolbarProps) {
           aria-hidden="true"
         >
           {cleanedCount !== null ? `Aligned ${cleanedCount} shapes!` : 'Mess Cleanup (Auto-Align)'}
+        </div>
+      </motion.button>
+
+      {/* FREEHAND SKETCH TO STRUCTURED DIAGRAM BUTTON */}
+      <motion.button
+        variants={itemVariants}
+        onClick={handleConvertFreehandSketch}
+        onMouseEnter={playHover}
+        aria-label="Magic Sketch — Convert rough drawings into clean architecture shapes"
+        className={`relative group w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-xl transition-all duration-300 overflow-hidden bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 hover:from-cyan-500/40 hover:to-indigo-500/40 border border-cyan-500/40 text-cyan-300 hover:scale-105 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
+          convertingSketch ? 'animate-pulse' : ''
+        }`}
+      >
+        <PenTool size={18} className={`text-cyan-400 group-hover:rotate-12 transition-transform ${convertingSketch ? 'animate-spin' : ''}`} />
+        
+        {/* Tooltip */}
+        <div 
+          className="absolute left-full ml-3 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity z-50 glass font-semibold text-cyan-300 shadow-xl border border-cyan-500/30"
+          aria-hidden="true"
+        >
+          {convertingSketch ? 'Converting Sketch...' : 'Magic Sketch (Convert Freehand)'}
         </div>
       </motion.button>
 

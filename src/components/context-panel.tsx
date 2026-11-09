@@ -46,6 +46,7 @@ export function ContextPanel() {
   const currentCtx = getShapeContext(activeShapeId || '');
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!activeShapeId) return;
     updateNotes(activeShapeId, e.target.value);
     setSavedNotesNotice(true);
     setTimeout(() => setSavedNotesNotice(false), 1500);
@@ -53,7 +54,7 @@ export function ContextPanel() {
 
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLinkUrl.trim()) return;
+    if (!activeShapeId || !newLinkUrl.trim()) return;
 
     let formattedUrl = newLinkUrl.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
@@ -71,7 +72,7 @@ export function ContextPanel() {
 
   const handleAddCodeSnippet = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCodeSnippet.trim()) return;
+    if (!activeShapeId || !newCodeSnippet.trim()) return;
 
     addCodeSnippet(activeShapeId, {
       language: newCodeLang,
@@ -83,11 +84,12 @@ export function ContextPanel() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!activeShapeId || !files || files.length === 0) return;
 
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = (event) => {
+        if (!activeShapeId) return;
         addFile(activeShapeId, {
           name: file.name,
           size: file.size,
@@ -188,8 +190,6 @@ export function ContextPanel() {
         </button>
       </div>
 
-      </div>
-
       {/* Tab Body */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         <AnimatePresence mode="wait">
@@ -277,7 +277,7 @@ export function ContextPanel() {
                       <span className="truncate">{link.title}</span>
                     </a>
                     <button
-                      onClick={() => removeLink(activeShapeId, link.id)}
+                      onClick={() => activeShapeId && removeLink(activeShapeId, link.id)}
                       className="p-1 text-gray-400 hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={14} />
@@ -343,7 +343,7 @@ export function ContextPanel() {
                     <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 flex items-center justify-between">
                       <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold">{snip.language}</span>
                       <button
-                        onClick={() => removeCodeSnippet(activeShapeId, snip.id)}
+                        onClick={() => activeShapeId && removeCodeSnippet(activeShapeId, snip.id)}
                         className="p-1 text-gray-400 hover:text-red-400"
                       >
                         <Trash2 size={12} />
@@ -397,7 +397,7 @@ export function ContextPanel() {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeFile(activeShapeId, file.id)}
+                      onClick={() => activeShapeId && removeFile(activeShapeId, file.id)}
                       className="p-1 text-gray-400 hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={14} />

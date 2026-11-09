@@ -2,11 +2,13 @@
   "name": "whiteboard",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types tests/run.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.17",
@@ -15,10 +17,8 @@
     "@liveblocks/yjs": "^3.22.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
-    "@types/canvas-confetti": "^1.9.0",
     "@types/three": "^0.185.1",
     "ai": "^7.0.33",
-    "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
@@ -33,6 +33,7 @@
     "three": "^0.185.1",
     "tldraw": "^5.2.5",
     "yjs": "^13.6.31",
+    "zod": "^4.6.7",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

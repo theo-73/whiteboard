@@ -4,12 +4,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { 
-  Sparkles, Users, Download, LogIn, ArrowRight, Wand2, FileCode2, 
-  History, CheckCircle2, ChevronRight, Layers, ShieldCheck, Zap,
+  Sparkles, Users, LogIn, ArrowRight, Wand2, FileCode2, 
+  History, CheckCircle2, ChevronRight, ShieldCheck, Zap,
   MousePointer2, ExternalLink
 } from "lucide-react";
 import { nanoid } from "nanoid";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, type Variants } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { AnimatedBorder } from "@/components/ui/animated-border";
@@ -18,17 +18,17 @@ gsap.registerPlugin(ScrollTrigger);
 
 const HeroParticles = dynamic(() => import("@/components/3d/hero-particles"), { ssr: false });
 
-const fadeUpVariant = {
+const fadeUpVariant: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }
 };
 
-const charVariant = {
+const charVariant: Variants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
-const staggerContainer = {
+const staggerContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -48,7 +48,7 @@ export default function LandingPage() {
   const [cursorAlex, setCursorAlex] = useState({ x: 0, y: 0 });
   const [cursorSarah, setCursorSarah] = useState({ x: 0, y: 0 });
 
-  const heroRef = useRef<HTMLElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function LandingPage() {
     // GSAP Parallax and Pinning
     if (!heroRef.current || !mainRef.current) return;
     
-    let ctx = gsap.context(() => {
+    const ctx = gsap.context(() => {
       // Parallax the background glows
       gsap.to(".bg-glow-orbs", {
         yPercent: 30,
@@ -95,9 +95,24 @@ export default function LandingPage() {
     return () => ctx.revert();
   }, []);
 
-  const handleCreateBoard = () => {
+  const handleCreateBoard = async () => {
     const boardId = nanoid(10);
-    router.push(`/board/${boardId}`);
+    try {
+      const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: boardId,
+          name: `Architecture Board ${boardId.substring(0, 4)}`, 
+          isPublic: true 
+        }),
+      });
+      const data = await res.json();
+      const targetId = data?.roomId || boardId;
+      router.push(`/board/${targetId}`);
+    } catch {
+      router.push(`/board/${boardId}`);
+    }
   };
 
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -112,7 +127,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden flex flex-col bg-[#07070a] text-white selection:bg-purple-500/30 selection:text-purple-200">
+    <div className="relative min-h-screen w-full overflow-x-hidden flex flex-col bg-[var(--background)] text-white selection:bg-purple-500/30 selection:text-purple-200">
       
       {/* Noise Grain */}
       <div className="bg-noise"></div>
@@ -160,7 +175,7 @@ export default function LandingPage() {
       <main ref={mainRef} className="relative z-10 flex-1 container mx-auto px-6 pt-12 pb-24 flex flex-col items-center">
         
         <motion.div 
-          ref={heroRef as any}
+          ref={heroRef}
           variants={staggerContainer} 
           initial="hidden" 
           animate="visible" 
@@ -234,7 +249,7 @@ export default function LandingPage() {
           <AnimatedBorder className="glow-card p-2 md:p-4 overflow-hidden shadow-2xl relative w-full h-full">
           
           {/* Top Bar inside Demo Box */}
-          <div className="w-full h-10 border-b border-white/10 bg-[#0d0d16] rounded-t-lg px-4 flex items-center justify-between text-xs text-gray-400">
+          <div className="w-full h-10 border-b border-white/10 bg-[var(--surface-elevated)] rounded-t-lg px-4 flex items-center justify-between text-xs text-gray-400">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
               <span className="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
@@ -394,14 +409,14 @@ export default function LandingPage() {
                   <span className="text-xs font-mono text-purple-400 uppercase tracking-widest block mb-2">01 / Deep AI Intelligence</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">AI Copilot & Architecture Assist</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Type a prompt like <em className="text-purple-300">"Add a microservice architecture with Redis cache and API gateway"</em>. SynapseBoard streams ghost shapes onto the canvas in real time.
+                    Type a prompt like <em className="text-purple-300">&quot;Add a microservice architecture with Redis cache and API gateway&quot;</em>. SynapseBoard streams ghost shapes onto the canvas in real time.
                   </p>
                   <div className="flex items-center gap-2 text-xs text-purple-300 font-semibold">
                     <CheckCircle2 size={16} className="text-emerald-400" /> Press <kbd className="px-2 py-0.5 rounded bg-white/10 font-mono text-white">Tab</kbd> to accept ghost shape suggestions instantly.
                   </div>
                 </div>
                 <div className="p-4 rounded-xl bg-[#090912] border border-white/10 font-mono text-xs text-cyan-300 leading-relaxed shadow-inner">
-                  <span className="text-gray-500">// Streaming AI Architecture Assist...</span><br />
+                  <span className="text-gray-500">{"// Streaming AI Architecture Assist..."}</span><br />
                   <span className="text-purple-400">POST</span> /api/ai/architecture-assist<br />
                   <span className="text-emerald-400">✓ Recommendation:</span> Insert Redis Cache cluster<br />
                   <span className="text-emerald-400">✓ Recommendation:</span> Add Kafka Message Queue<br />
@@ -473,7 +488,7 @@ export default function LandingPage() {
                   <span className="text-xs font-mono text-emerald-400 uppercase tracking-widest block mb-2">04 / Revision Timeline</span>
                   <h3 className="text-2xl font-bold mb-3 text-white">Time-Travel Replay</h3>
                   <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Scrub through diagram history step-by-step with interactive playback controls. Review how your team's architecture evolved over time.
+                    Scrub through diagram history step-by-step with interactive playback controls. Review how your team&apos;s architecture evolved over time.
                   </p>
                   <div className="flex items-center gap-2 text-xs text-emerald-300 font-semibold">
                     <CheckCircle2 size={16} className="text-emerald-400" /> Up to 50 historical canvas snapshots supported.
@@ -490,7 +505,7 @@ export default function LandingPage() {
                 </div>
               </div>
             )}
-          </AnimatedBorder>
+          </div>
         </motion.div>
 
         {/* ===================================================
@@ -586,7 +601,6 @@ const StatCard = React.memo(function StatCard({ number, suffix = "", prefix = ""
 
   useEffect(() => {
     if (isInView && !noCount) {
-      let start = 0;
       const end = parseInt(number.toString());
       if (isNaN(end)) return;
       

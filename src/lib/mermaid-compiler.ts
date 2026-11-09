@@ -1,4 +1,4 @@
-import { createShapeId, TLShapeId } from 'tldraw';
+import { createShapeId, type TLShapeId } from 'tldraw';
 
 export interface MermaidNode {
   id: string;
@@ -50,7 +50,7 @@ export function parseAndCompileMermaid(
     let match;
     while ((match = nodeRegex.exec(trimmed)) !== null) {
       const id = match[1];
-      let label = match[2] || match[3] || match[4] || match[5] || match[6] || match[7] || id;
+      const label = match[2] || match[3] || match[4] || match[5] || match[6] || match[7] || id;
       let shape: MermaidNode['shape'] = 'rectangle';
 
       if (match[2]) shape = 'cylinder';
@@ -63,32 +63,45 @@ export function parseAndCompileMermaid(
       }
     }
 
-    // Match edges: A --> B, A -->|label| B, A -- label --> B
-    if (trimmed.includes('-->') || trimmed.includes('---')) {
-      const edgeParts = trimmed.split(/-->|---/);
-      if (edgeParts.length >= 2) {
-        const sourceMatch = edgeParts[0].trim().match(/([A-Za-z0-9_]+)$/);
-        const targetMatch = edgeParts[1].trim().match(/^([A-Za-z0-9_]+)/);
+    // Match edges:
+    // Pattern 1: A -->|label| B or A --> B or A --- B
+    const edgeRegex = /([A-Za-z0-9_]+)(?:\[.*?\]|\(.*?\)|<.*?>|\{.*?\})?\s*(?:-->|---|==>)\s*(?:\|([^|]+)\|\s*)?([A-Za-z0-9_]+)/g;
+    let edgeMatch;
+    while ((edgeMatch = edgeRegex.exec(trimmed)) !== null) {
+      const source = edgeMatch[1];
+      const edgeLabel = (edgeMatch[2] || '').trim();
+      const target = edgeMatch[3];
 
-        if (sourceMatch && targetMatch) {
-          const source = sourceMatch[1];
-          const target = targetMatch[1];
-          
-          let edgeLabel = '';
-          const labelMatch = trimmed.match(/--\|([^|]+)\|-->|--\s*([^-]+)\s*-->/);
-          if (labelMatch) {
-            edgeLabel = (labelMatch[1] || labelMatch[2] || '').trim();
-          }
+      if (source && target && source !== target) {
+        edges.push({ source, target, label: edgeLabel });
 
+        if (!nodesMap.has(source)) {
+          nodesMap.set(source, { id: source, label: source, shape: 'rectangle' });
+        }
+        if (!nodesMap.has(target)) {
+          nodesMap.set(target, { id: target, label: target, shape: 'rectangle' });
+        }
+      }
+    }
+
+    // Pattern 2: A -- label --> B
+    const labeledEdgeRegex = /([A-Za-z0-9_]+)(?:\[.*?\]|\(.*?\)|<.*?>|\{.*?\})?\s*--\s*([^-]+?)\s*-->\s*([A-Za-z0-9_]+)/g;
+    let labeledMatch;
+    while ((labeledMatch = labeledEdgeRegex.exec(trimmed)) !== null) {
+      const source = labeledMatch[1];
+      const edgeLabel = (labeledMatch[2] || '').trim();
+      const target = labeledMatch[3];
+
+      if (source && target && source !== target) {
+        if (!edges.some(e => e.source === source && e.target === target && e.label === edgeLabel)) {
           edges.push({ source, target, label: edgeLabel });
+        }
 
-          // Ensure basic nodes exist if not explicitly defined with brackets
-          if (!nodesMap.has(source)) {
-            nodesMap.set(source, { id: source, label: source, shape: 'rectangle' });
-          }
-          if (!nodesMap.has(target)) {
-            nodesMap.set(target, { id: target, label: target, shape: 'rectangle' });
-          }
+        if (!nodesMap.has(source)) {
+          nodesMap.set(source, { id: source, label: source, shape: 'rectangle' });
+        }
+        if (!nodesMap.has(target)) {
+          nodesMap.set(target, { id: target, label: target, shape: 'rectangle' });
         }
       }
     }
@@ -135,10 +148,12 @@ export function parseAndCompileMermaid(
     });
   });
 
-  // Create connecting arrows
+  // Create connecting arrows with shape bindings
   edges.forEach((edge) => {
     const sourcePos = nodePositions.get(edge.source);
     const targetPos = nodePositions.get(edge.target);
+    const sourceShapeId = shapeIdMap.get(edge.source);
+    const targetShapeId = shapeIdMap.get(edge.target);
 
     if (sourcePos && targetPos) {
       shapes.push({
@@ -147,8 +162,22 @@ export function parseAndCompileMermaid(
         x: sourcePos.x + 80,
         y: sourcePos.y + 40,
         props: {
-          start: { x: 0, y: 0 },
-          end: { x: targetPos.x - sourcePos.x, y: targetPos.y - sourcePos.y },
+          start: sourceShapeId
+            ? {
+                type: 'binding',
+                boundShapeId: sourceShapeId,
+                normalizedAnchor: { x: 0.5, y: 0.5 },
+                isExact: false,
+              }
+            : { x: 0, y: 0 },
+          end: targetShapeId
+            ? {
+                type: 'binding',
+                boundShapeId: targetShapeId,
+                normalizedAnchor: { x: 0.5, y: 0.5 },
+                isExact: false,
+              }
+            : { x: targetPos.x - sourcePos.x, y: targetPos.y - sourcePos.y },
           text: edge.label || '',
         },
       });

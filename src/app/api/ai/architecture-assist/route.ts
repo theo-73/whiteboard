@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { checkRateLimit } from '@/lib/rate-limiter';
 
 interface CanvasShapeInput {
   id?: string;
@@ -28,6 +29,20 @@ export interface ArchitectureRecommendation {
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anonymous';
+    const rateCheck = checkRateLimit(`ai-assist:${ip}`, 30, 60000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait a moment before trying again.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateCheck.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const shapes: CanvasShapeInput[] = body?.shapes || [];
     const apiKey = body?.apiKey || process.env.OPENAI_API_KEY;

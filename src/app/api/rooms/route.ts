@@ -4,10 +4,11 @@ import { PersistenceService } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const id = body?.id;
     const name = body?.name || 'Untitled Architecture Board';
     const isPublic = body?.isPublic ?? true;
 
-    const room = await PersistenceService.createRoom(name, isPublic);
+    const room = await PersistenceService.createRoom(name, isPublic, id);
 
     const origin = request.headers.get('origin') || 'http://localhost:3000';
     const shareUrl = `${origin}/board/${room.id}`;

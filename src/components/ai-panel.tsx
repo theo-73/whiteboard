@@ -32,6 +32,25 @@ interface ParsedSuggestionData {
   edges?: StreamEdge[];
 }
 
+function extractJsonFromLine<T>(line: string): T | null {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('```') || trimmed.startsWith('//')) return null;
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    const startIdx = trimmed.indexOf('{');
+    const endIdx = trimmed.lastIndexOf('}');
+    if (startIdx !== -1 && endIdx > startIdx) {
+      try {
+        return JSON.parse(trimmed.substring(startIdx, endIdx + 1)) as T;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 export function AiPanel({ editor }: AiPanelProps) {
   const { 
     aiPanelOpen, 
@@ -130,7 +149,7 @@ export function AiPanel({ editor }: AiPanelProps) {
 
     editor.createShapes(newGhostShapes as unknown as Parameters<typeof editor.createShapes>[0]);
     setGhostShapeIds(createdGhostIds);
-  }, [editor, setGhostShapeIds]);
+  }, [editor, setGhostShapeIds, playClick]);
 
   const handleAcceptSuggestion = useCallback((sugg: AISuggestion) => {
     playSuccess();
@@ -216,7 +235,7 @@ export function AiPanel({ editor }: AiPanelProps) {
       editor.createShapes(newShapes as unknown as Parameters<typeof editor.createShapes>[0]);
     }
     removeAiSuggestion(sugg.id);
-  }, [editor, ghostShapeIds, clearGhostShapeIds, removeAiSuggestion]);
+  }, [editor, ghostShapeIds, clearGhostShapeIds, removeAiSuggestion, playSuccess]);
 
   const handleRejectSuggestion = (suggId: string) => {
     playClick();
@@ -283,18 +302,23 @@ export function AiPanel({ editor }: AiPanelProps) {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const rec = JSON.parse(line) as ArchitectureRecommendation;
-            if (rec && rec.title) {
-              recs.push(rec);
-              setRecommendations([...recs]);
-            }
-          } catch (err) {
-            console.error('Error parsing rec line:', err);
+          const rec = extractJsonFromLine<ArchitectureRecommendation>(line);
+          if (rec && rec.title) {
+            recs.push(rec);
+            setRecommendations([...recs]);
           }
         }
       }
+
+      // Process any trailing un-newline-terminated buffer chunk
+      if (buffer.trim()) {
+        const rec = extractJsonFromLine<ArchitectureRecommendation>(buffer);
+        if (rec && rec.title) {
+          recs.push(rec);
+          setRecommendations([...recs]);
+        }
+      }
+
       if (recs.length > 0) playSuccess();
     } catch (err) {
       console.error('Failed to run architecture assist:', err);
@@ -303,12 +327,13 @@ export function AiPanel({ editor }: AiPanelProps) {
     }
   };
 
-  // Add suggested component node directly to canvas with smart positioning
-  const handleAddSuggestedNode = (node: { label: string; shape: 'rectangle' | 'ellipse' | 'cylinder' }) => {
+  // Add suggested component node directly to canvas with smart positioning and connecting arrow
+  const handleAddSuggestedNode = (node: { label: string; shape: 'rectangle' | 'ellipse' | 'cylinder'; connectTo?: string }) => {
     playSuccess();
     if (!editor) return;
     const center = editor.getViewportPageBounds().center;
-    const existingCount = Array.from(editor.getCurrentPageShapes()).length;
+    const existingShapes = Array.from(editor.getCurrentPageShapes());
+    const existingCount = existingShapes.length;
     
     // Offset added nodes so they don't stack directly on top of each other
     const col = existingCount % 3;
@@ -316,12 +341,16 @@ export function AiPanel({ editor }: AiPanelProps) {
     const offsetX = (col - 1) * 200;
     const offsetY = (row % 3) * 120 + 80;
 
-    editor.createShapes([
+    const newNodeId = createShapeId();
+    const targetX = center.x + offsetX;
+    const targetY = center.y + offsetY;
+
+    const shapesToCreate: Array<Record<string, unknown>> = [
       {
-        id: createShapeId(),
+        id: newNodeId,
         type: 'geo',
-        x: center.x + offsetX,
-        y: center.y + offsetY,
+        x: targetX,
+        y: targetY,
         props: {
           geo: node.shape === 'ellipse' || node.shape === 'cylinder' ? 'ellipse' : 'rectangle',
           w: 160,
@@ -331,7 +360,45 @@ export function AiPanel({ editor }: AiPanelProps) {
           text: node.label,
         },
       },
-    ] as unknown as Parameters<typeof editor.createShapes>[0]);
+    ];
+
+    // If recommendation specified a connectTo component, find it and create a connecting arrow
+    if (node.connectTo) {
+      const targetShape = existingShapes.find((s) => {
+        const shapeProps = (s.props || {}) as { text?: string };
+        const text = (shapeProps.text || '').toLowerCase();
+        const search = node.connectTo!.toLowerCase();
+        return text.includes(search) || search.includes(text);
+      });
+
+      if (targetShape) {
+        const arrowId = createShapeId();
+        shapesToCreate.push({
+          id: arrowId,
+          type: 'arrow',
+          x: targetShape.x,
+          y: targetShape.y,
+          props: {
+            start: {
+              type: 'binding',
+              boundShapeId: targetShape.id,
+              normalizedAnchor: { x: 0.5, y: 0.5 },
+              isExact: false,
+            },
+            end: {
+              type: 'binding',
+              boundShapeId: newNodeId,
+              normalizedAnchor: { x: 0.5, y: 0.5 },
+              isExact: false,
+            },
+            color: 'blue',
+            dash: 'draw',
+          },
+        });
+      }
+    }
+
+    editor.createShapes(shapesToCreate as Parameters<typeof editor.createShapes>[0]);
   };
 
   const handleSubmitPrompt = async (e: React.FormEvent) => {
@@ -370,16 +437,25 @@ export function AiPanel({ editor }: AiPanelProps) {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const chunk = JSON.parse(line) as { type: string; data: StreamNode | StreamEdge };
-            if (chunk.type === 'node') {
+          const chunk = extractJsonFromLine<{ type: string; data: StreamNode | StreamEdge }>(line);
+          if (chunk) {
+            if (chunk.type === 'node' && chunk.data) {
               nodes.push(chunk.data as StreamNode);
-            } else if (chunk.type === 'edge') {
+            } else if (chunk.type === 'edge' && chunk.data) {
               edges.push(chunk.data as StreamEdge);
             }
-          } catch (err) {
-            console.error('Error parsing stream chunk:', err);
+          }
+        }
+      }
+
+      // Process any trailing un-newline-terminated buffer chunk
+      if (buffer.trim()) {
+        const chunk = extractJsonFromLine<{ type: string; data: StreamNode | StreamEdge }>(buffer);
+        if (chunk) {
+          if (chunk.type === 'node' && chunk.data) {
+            nodes.push(chunk.data as StreamNode);
+          } else if (chunk.type === 'edge' && chunk.data) {
+            edges.push(chunk.data as StreamEdge);
           }
         }
       }

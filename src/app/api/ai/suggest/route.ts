@@ -1,9 +1,45 @@
 import { NextResponse } from 'next/server';
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { checkRateLimit } from '@/lib/rate-limiter';
+import { z } from 'zod';
+
+export const nodeSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  shape: z.enum(['rectangle', 'ellipse', 'cylinder']),
+  x: z.number().optional(),
+  y: z.number().optional(),
+});
+
+export const edgeSchema = z.object({
+  id: z.string(),
+  label: z.string().optional(),
+  source: z.string(),
+  target: z.string(),
+});
+
+export const diagramSchema = z.object({
+  nodes: z.array(nodeSchema),
+  edges: z.array(edgeSchema),
+});
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anonymous';
+    const rateCheck = checkRateLimit(`ai-suggest:${ip}`, 30, 60000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please wait a moment before trying again.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': Math.ceil((rateCheck.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const prompt = body?.prompt || '';
     const apiKey = body?.apiKey || process.env.OPENAI_API_KEY;
