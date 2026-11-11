@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, SkipBack, SkipForward, History, X } from 'lucide-react';
-import { Editor } from 'tldraw';
+import { Editor, TLShapePartial } from 'tldraw';
 import { useAppStore } from '@/store/app-store';
 
 interface TimeTravelReplayProps {
@@ -80,7 +80,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
             editor.deleteShapes(currentShapeIds);
           }
           if (snapshot.shapes.length > 0) {
-            editor.createShapes(snapshot.shapes as unknown as Parameters<typeof editor.createShapes>[0]);
+            editor.createShapes(snapshot.shapes as TLShapePartial[]);
           }
         });
       } catch (err) {
@@ -133,7 +133,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
           if (liveRecords && liveRecords.length > 0) {
             editor.store.put(liveRecords as Parameters<typeof editor.store.put>[0]);
           } else if (liveSnapshotRef.current && liveSnapshotRef.current.length > 0) {
-            editor.createShapes(liveSnapshotRef.current as unknown as Parameters<typeof editor.createShapes>[0]);
+            editor.createShapes(liveSnapshotRef.current as TLShapePartial[]);
           }
         });
         editor.markHistoryStoppingPoint();
@@ -174,12 +174,12 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
       <button
         onClick={handleStartReplay}
         disabled={history.length === 0}
-        className="tooltip fixed bottom-16 left-24 md:bottom-4 md:left-24 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold glass border hover:bg-white/10 active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip fixed bottom-16 left-24 md:bottom-4 md:left-24 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold glass border hover:bg-white/10 active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         aria-label="Replay step-by-step diagram evolution"
         data-tooltip="Replay step-by-step diagram evolution"
       >
-        <History size={14} className="text-purple-400" />
+        <History size={14} className="text-blue-400" />
         Time-Travel <span className="tabular-nums font-mono">({history.length} steps)</span>
       </button>
     );
@@ -191,8 +191,8 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
       style={{ borderColor: 'var(--border)', minWidth: 'min(95vw, 420px)' }}
     >
       <div className="flex items-center gap-2">
-        <History size={16} className="text-purple-400 animate-spin-slow" />
-        <span className="text-xs font-semibold text-purple-300">Replay Mode</span>
+        <History size={16} className="text-blue-400 animate-spin-slow" />
+        <span className="text-xs font-semibold text-blue-300">Replay Mode</span>
       </div>
 
       <div className="flex items-center gap-1">
@@ -200,7 +200,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
           onClick={() => loadSnapshotStep(currentStep - 1)}
           disabled={currentStep <= 0}
           aria-label="Previous step"
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 disabled:opacity-30 text-gray-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 disabled:opacity-30 text-gray-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <SkipBack size={14} />
         </button>
@@ -208,7 +208,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
         <button
           onClick={() => setIsPlaying(!isPlaying)}
           aria-label={isPlaying ? "Pause replay" : "Play replay"}
-          className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:opacity-90 active:scale-90 transition-all shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white active:scale-90 transition-all shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           {isPlaying ? <Pause size={14} /> : <Play size={14} />}
         </button>
@@ -217,7 +217,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
           onClick={() => loadSnapshotStep(currentStep + 1)}
           disabled={currentStep >= history.length - 1}
           aria-label="Next step"
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 disabled:opacity-30 text-gray-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 disabled:opacity-30 text-gray-300 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <SkipForward size={14} />
         </button>
@@ -232,7 +232,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
           value={currentStep}
           onChange={(e) => loadSnapshotStep(parseInt(e.target.value, 10))}
           aria-label="Replay timeline scrubber"
-          className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         />
         <span className="text-[11px] font-mono tabular-nums text-gray-300 whitespace-nowrap">
           {currentStep + 1}/{history.length}
@@ -243,7 +243,7 @@ export function TimeTravelReplay({ editor }: TimeTravelReplayProps) {
         onClick={handleExitReplay}
         aria-label="Exit Replay"
         data-tooltip="Exit Replay"
-        className="tooltip w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 text-gray-400 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        className="tooltip w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 active:scale-90 text-gray-400 hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
         <X size={16} />
       </button>

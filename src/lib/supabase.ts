@@ -1,4 +1,35 @@
-// Supabase persistence client helper with in-memory / local fallback
+function parseJsonList<T>(input: unknown): T[] {
+  if (Array.isArray(input)) return input as T[];
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) return parsed as T[];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+interface StoredLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+interface StoredCodeSnippet {
+  id: string;
+  language: string;
+  code: string;
+}
+
+interface StoredFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl?: string;
+}
 
 export interface RoomRecord {
   id: string;
@@ -87,19 +118,18 @@ export class PersistenceService {
       }
     }
 
-    return memoryRooms.get(id) || {
-      id,
-      name: `Architecture Room ${id.substring(0, 4)}`,
-      is_public: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    return memoryRooms.get(id) || null;
   }
 
   public static async updateRoom(
     id: string,
     updates: { name?: string; snapshot_data?: string; is_public?: boolean }
   ): Promise<boolean> {
+    const MAX_SNAPSHOT_BYTES = 5 * 1024 * 1024; // 5 MB limit
+    if (updates.snapshot_data && updates.snapshot_data.length > MAX_SNAPSHOT_BYTES) {
+      throw new Error('Snapshot data exceeds 5 MB limit');
+    }
+
     const now = new Date().toISOString();
     const payload: Record<string, unknown> = { updated_at: now };
     if (updates.name !== undefined) payload.name = updates.name;
@@ -215,9 +245,9 @@ export class PersistenceService {
         try {
           result[shapeId] = {
             notes: rec.notes || '',
-            links: Array.isArray(rec.links_json) ? (rec.links_json as unknown as Array<{ id: string; title: string; url: string }>) : (typeof rec.links_json === 'string' ? JSON.parse(rec.links_json) : []),
-            codeSnippets: Array.isArray(rec.code_snippets_json) ? (rec.code_snippets_json as unknown as Array<{ id: string; language: string; code: string }>) : (typeof rec.code_snippets_json === 'string' ? JSON.parse(rec.code_snippets_json) : []),
-            files: Array.isArray(rec.files_json) ? (rec.files_json as unknown as Array<{ id: string; name: string; size: number; type: string; dataUrl?: string }>) : (typeof rec.files_json === 'string' ? JSON.parse(rec.files_json) : []),
+            links: parseJsonList<StoredLink>(rec.links_json),
+            codeSnippets: parseJsonList<StoredCodeSnippet>(rec.code_snippets_json),
+            files: parseJsonList<StoredFile>(rec.files_json),
           };
         } catch {
           // ignore

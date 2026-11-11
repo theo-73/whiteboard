@@ -39,7 +39,7 @@ export function LiveblocksProvider({ roomId, children }: LiveblocksProviderProps
     // Clean offline solo mode without 401 WebSocket reconnect loops
     const mockRoom = createOfflineMockRoom(roomId);
     return (
-      // @ts-expect-error Mock room satisfies minimal interface for offline solo mode
+      // @ts-expect-error Upstream @liveblocks/react (v2.x) RoomContext expects an internal Liveblocks Room instance with private socket fields. In offline solo mode (when NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY is absent), this adapter satisfies consumer hooks (useRoom, useOthers, useMyPresence) without unauthenticated WebSocket reconnect loops.
       <RoomContext.Provider value={mockRoom}>
         {children}
       </RoomContext.Provider>

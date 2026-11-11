@@ -25,11 +25,12 @@ export function useYjsStore({ initialSnapshot }: UseYjsStoreOptions = {}) {
     let yProvider: LiveblocksYjsProvider | null = null;
 
     try {
-      if (room && typeof (room as unknown as { fetchYDoc?: unknown }).fetchYDoc === 'function') {
+      const isLiveRoom = Boolean(room && typeof room === 'object' && 'fetchYDoc' in room);
+      if (isLiveRoom) {
         yProvider = new LiveblocksYjsProvider(room, yDoc);
       }
-    } catch (err) {
-      console.warn('Liveblocks Yjs provider failed to connect (running offline):', err);
+    } catch {
+      // Running offline fallback
     }
 
     const yRecords = yDoc.getMap<TLRecord>('tldraw_records');

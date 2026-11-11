@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { SmoothScrollProvider } from "@/components/ui/smooth-scroll-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const uiSans = Instrument_Sans({
+  variable: "--font-ui",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const displayMono = JetBrains_Mono({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -35,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="dark" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="antialiased h-full w-full m-0 p-0 bg-[var(--background)] text-[var(--foreground)]">
+    <html lang="en" data-theme="dark" className={`${uiSans.variable} ${displayMono.variable} h-full`}>
+      <body className="antialiased h-full w-full m-0 p-0 bg-[var(--background)] text-[var(--foreground)] font-sans">
         <ErrorBoundary>
           <SmoothScrollProvider>
             {children}

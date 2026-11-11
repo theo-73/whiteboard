@@ -129,11 +129,11 @@ export function ContextPanel() {
       {/* Panel Header */}
       <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)' }}>
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+          <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
             <FileText size={16} />
           </div>
           <div>
-            <span className="text-[10px] uppercase font-mono text-purple-400 block font-semibold">Executable Context Layer</span>
+            <span className="text-[10px] uppercase font-mono text-blue-400 block font-semibold tracking-wider">Shape Context Layer</span>
             <h3 className="font-bold text-sm truncate max-w-[240px]" style={{ color: 'var(--text-primary)' }}>
               {activeShapeLabel || 'Component'}
             </h3>
@@ -160,7 +160,7 @@ export function ContextPanel() {
           aria-selected={activeTab === 'notes'}
           onClick={() => setActiveTab('notes')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
-            activeTab === 'notes' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            activeTab === 'notes' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <FileText size={14} /> Notes
@@ -171,7 +171,7 @@ export function ContextPanel() {
           aria-selected={activeTab === 'links'}
           onClick={() => setActiveTab('links')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all relative ${
-            activeTab === 'links' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            activeTab === 'links' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <LinkIcon size={14} /> Links <span className="tabular-nums font-mono text-[10px]">({currentCtx.links.length})</span>
@@ -182,7 +182,7 @@ export function ContextPanel() {
           aria-selected={activeTab === 'code'}
           onClick={() => setActiveTab('code')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
-            activeTab === 'code' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            activeTab === 'code' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Code2 size={14} /> Code <span className="tabular-nums font-mono text-[10px]">({currentCtx.codeSnippets.length})</span>
@@ -193,7 +193,7 @@ export function ContextPanel() {
           aria-selected={activeTab === 'files'}
           onClick={() => setActiveTab('files')}
           className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
-            activeTab === 'files' ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
+            activeTab === 'files' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Paperclip size={14} /> Files <span className="tabular-nums font-mono text-[10px]">({currentCtx.files.length})</span>
@@ -216,7 +216,7 @@ export function ContextPanel() {
               className="flex flex-col h-full gap-2"
             >
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-300">Executable Architecture Notes</label>
+              <label className="text-xs font-semibold text-gray-300">Notes (Plain Text)</label>
               {savedNotesNotice && (
                 <span className="text-[10px] text-green-400 flex items-center gap-1 animate-fade-in">
                   <Check size={12} /> Saved
@@ -227,7 +227,7 @@ export function ContextPanel() {
               value={currentCtx.notes}
               onChange={handleNotesChange}
               placeholder="Add architectural notes, API contracts, deployment instructions, schema details..."
-              className="w-full flex-1 min-h-[220px] p-3 rounded-xl bg-black/30 border border-white/10 text-white text-xs font-mono outline-none focus:border-purple-500 transition-colors resize-none leading-relaxed"
+              className="w-full flex-1 min-h-[220px] p-3 rounded-xl bg-black/30 border border-white/10 text-white text-xs font-mono outline-none focus:border-blue-500 transition-colors resize-none leading-relaxed"
             />
             </motion.div>
           )}
@@ -251,7 +251,7 @@ export function ContextPanel() {
                 placeholder="Link Title (e.g. Swagger API Docs)"
                 value={newLinkTitle}
                 onChange={(e) => setNewLinkTitle(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white outline-none focus:border-purple-500"
+                className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white outline-none focus:border-blue-500"
               />
               <div className="flex items-center gap-2">
                 <input
@@ -259,12 +259,12 @@ export function ContextPanel() {
                   placeholder="https://api-docs.example.com"
                   value={newLinkUrl}
                   onChange={(e) => setNewLinkUrl(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white outline-none focus:border-purple-500"
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white outline-none focus:border-blue-500"
                 />
                 <button
                   type="submit"
                   disabled={!newLinkUrl.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-purple-500 disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-blue-500 disabled:opacity-40"
                 >
                   <Plus size={14} /> Add
                 </button>
@@ -281,7 +281,7 @@ export function ContextPanel() {
                       href={link.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs font-medium text-purple-300 hover:underline truncate flex-1"
+                      className="flex items-center gap-2 text-xs font-medium text-blue-300 hover:underline truncate flex-1"
                     >
                       <ExternalLink size={14} />
                       <span className="truncate">{link.title}</span>
@@ -313,11 +313,11 @@ export function ContextPanel() {
             >
             <form onSubmit={handleAddCodeSnippet} className="flex flex-col gap-2 p-3 rounded-xl bg-black/20 border border-white/10">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-300">Add Code Snippet</span>
+                <span className="text-xs font-semibold text-gray-300">Code Snippets</span>
                 <select
                   value={newCodeLang}
                   onChange={(e) => setNewCodeLang(e.target.value)}
-                  className="px-2 py-1 rounded bg-black/50 border border-white/10 text-xs text-purple-300 outline-none"
+                  className="px-2 py-1 rounded bg-black/50 border border-white/10 text-xs text-blue-300 outline-none"
                 >
                   <option value="typescript">TypeScript</option>
                   <option value="sql">SQL Schema</option>
@@ -331,13 +331,13 @@ export function ContextPanel() {
                 onChange={(e) => setNewCodeSnippet(e.target.value)}
                 placeholder="Paste code snippet, handler function, or SQL DDL here..."
                 rows={4}
-                className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-xs font-mono text-green-400 outline-none focus:border-purple-500"
+                className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-xs font-mono text-emerald-400 outline-none focus:border-blue-500"
               />
               <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={!newCodeSnippet.trim()}
-                  className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-purple-500 disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center gap-1 hover:bg-blue-500 disabled:opacity-40"
                 >
                   <Plus size={14} /> Save Snippet
                 </button>
@@ -351,7 +351,7 @@ export function ContextPanel() {
                 currentCtx.codeSnippets.map((snip) => (
                   <div key={snip.id} className="flex flex-col rounded-xl bg-black/40 border border-white/10 overflow-hidden">
                     <div className="px-3 py-1.5 bg-white/5 border-b border-white/10 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-purple-400 uppercase font-semibold">{snip.language}</span>
+                      <span className="text-[10px] font-mono text-blue-400 uppercase font-semibold">{snip.language}</span>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleCopySnippet(snip.id, snip.code)}
@@ -374,7 +374,7 @@ export function ContextPanel() {
                         </button>
                       </div>
                     </div>
-                    <pre className="p-3 text-[11px] font-mono text-green-400 overflow-x-auto whitespace-pre-wrap max-h-40">
+                    <pre className="p-3 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap max-h-40">
                       {snip.code}
                     </pre>
                   </div>
@@ -396,8 +396,8 @@ export function ContextPanel() {
               aria-label="Files Tab"
               className="flex flex-col gap-4"
             >
-            <label className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-white/15 bg-white/5 hover:bg-white/10 hover:border-purple-500/50 cursor-pointer transition-all">
-              <Upload size={22} className="text-purple-400 mb-1" />
+            <label className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-dashed border-white/15 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 cursor-pointer transition-all">
+              <Upload size={22} className="text-blue-400 mb-1" />
               <span className="text-xs font-semibold text-gray-300">Click to upload file attachment</span>
               <span className="text-[10px] text-gray-500 mt-0.5">Images, PDFs, specs, diagrams</span>
               <input 
@@ -415,7 +415,7 @@ export function ContextPanel() {
                 currentCtx.files.map((file) => (
                   <div key={file.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <Paperclip size={14} className="text-purple-400 flex-shrink-0" />
+                      <Paperclip size={14} className="text-blue-400 flex-shrink-0" />
                       <div className="overflow-hidden">
                         <span className="text-xs font-medium text-white truncate block">{file.name}</span>
                         <span className="text-[10px] text-gray-500">{Math.round(file.size / 1024)} KB</span>

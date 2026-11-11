@@ -1,115 +1,73 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { 
-  Sparkles, Users, LogIn, ArrowRight, Wand2, FileCode2, 
-  History, CheckCircle2, ChevronRight, ShieldCheck, Zap,
-  MousePointer2, ExternalLink
+  Users, LogIn, ArrowRight, Wand2, FileCode2, 
+  History, CheckCircle2,
+  Layers, Plus, Clock, Trash2,
+  Terminal, ArrowUpRight
 } from "lucide-react";
 import { nanoid } from "nanoid";
-import { motion, useInView, type Variants } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { AnimatedBorder } from "@/components/ui/animated-border";
+import { motion, AnimatePresence } from "framer-motion";
 
-gsap.registerPlugin(ScrollTrigger);
-
-const HeroParticles = dynamic(() => import("@/components/3d/hero-particles"), { ssr: false });
-
-const fadeUpVariant: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }
-};
-
-const charVariant: Variants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
-};
-
-const staggerContainer: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
+interface RecentBoard {
+  id: string;
+  name: string;
+  updatedAt: number;
+}
 
 export default function LandingPage() {
   const router = useRouter();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [roomIdInput, setRoomIdInput] = useState("");
-  const [activeTab, setActiveTab] = useState<"ai" | "layout" | "context" | "replay">("ai");
-
-  // Simulated cursor movements for the Hero Demo Widget
-  const [cursorAlex, setCursorAlex] = useState({ x: 0, y: 0 });
-  const [cursorSarah, setCursorSarah] = useState({ x: 0, y: 0 });
-
-  const heroRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    let animationFrameId: number;
-    
-    const animateCursors = () => {
-      if (!document.hidden) {
-        const time = Date.now();
-        setCursorAlex({
-          x: Math.sin(time / 800) * 45,
-          y: Math.cos(time / 900) * 25,
-        });
-        setCursorSarah({
-          x: Math.cos(time / 700) * 50,
-          y: Math.sin(time / 1000) * 30,
-        });
-      }
-      animationFrameId = requestAnimationFrame(animateCursors);
-    };
-
-    animateCursors();
-    
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
-  useEffect(() => {
-    // GSAP Parallax and Pinning
-    if (!heroRef.current || !mainRef.current) return;
-    
-    const ctx = gsap.context(() => {
-      // Parallax the background glows
-      gsap.to(".bg-glow-orbs", {
-        yPercent: 30,
-        ease: "none",
-        scrollTrigger: {
-          trigger: mainRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: true,
-        }
-      });
-    });
-
-    return () => ctx.revert();
-  }, []);
-
-  const handleCreateBoard = async () => {
-    const boardId = nanoid(10);
+  const [recentBoards, setRecentBoards] = useState<RecentBoard[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
-      const res = await fetch('/api/rooms', {
+      const stored = localStorage.getItem("synapse_recent_boards");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Interactive Live Hero Preview State (DAG node positions for live demo)
+  const [previewNodes, setPreviewNodes] = useState([
+    { id: "client", label: "Web / Mobile Client", type: "React / Next.js", x: 24, y: 140, layer: 0 },
+    { id: "gateway", label: "API Gateway", type: "Envoy / Reverse Proxy", x: 260, y: 90, layer: 1 },
+    { id: "auth", label: "Auth Service", type: "JWT / OIDC", x: 260, y: 220, layer: 1 },
+    { id: "redis", label: "Redis Session Cache", type: "In-Memory Store", x: 500, y: 40, layer: 2 },
+    { id: "db", label: "Postgres Cluster", type: "WAL / Read Replicas", x: 500, y: 180, layer: 2 },
+  ]);
+  const [isCleaned, setIsCleaned] = useState(false);
+
+  const handleCreateBoard = async (customName?: string) => {
+    const boardId = nanoid(10);
+    const boardName = customName || `Architecture Board ${boardId.substring(0, 4)}`;
+    
+    // Save to local recent boards list
+    try {
+      const updated = [
+        { id: boardId, name: boardName, updatedAt: Date.now() },
+        ...recentBoards.filter((b) => b.id !== boardId),
+      ].slice(0, 8);
+      setRecentBoards(updated);
+      localStorage.setItem("synapse_recent_boards", JSON.stringify(updated));
+    } catch {
+      // Storage quota or SSR fallback
+    }
+
+    try {
+      await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           id: boardId,
-          name: `Architecture Board ${boardId.substring(0, 4)}`, 
+          name: boardName, 
           isPublic: true 
         }),
       });
-      const data = await res.json();
-      const targetId = data?.roomId || boardId;
-      router.push(`/board/${targetId}`);
+      router.push(`/board/${boardId}`);
     } catch {
       router.push(`/board/${boardId}`);
     }
@@ -126,408 +84,373 @@ export default function LandingPage() {
     router.push(`/board/${cleanId}`);
   };
 
+  const handleDeleteRecentBoard = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const updated = recentBoards.filter((b) => b.id !== id);
+    setRecentBoards(updated);
+    try {
+      localStorage.setItem("synapse_recent_boards", JSON.stringify(updated));
+    } catch {
+      // Storage fallback
+    }
+  };
+
+  const handleTriggerMessCleanup = () => {
+    setIsCleaned((prev) => !prev);
+    if (!isCleaned) {
+      // Clean topological layered coordinates
+      setPreviewNodes([
+        { id: "client", label: "Web / Mobile Client", type: "React / Next.js", x: 20, y: 130, layer: 0 },
+        { id: "gateway", label: "API Gateway", type: "Envoy / Reverse Proxy", x: 250, y: 70, layer: 1 },
+        { id: "auth", label: "Auth Service", type: "JWT / OIDC", x: 250, y: 200, layer: 1 },
+        { id: "redis", label: "Redis Session Cache", type: "In-Memory Store", x: 490, y: 50, layer: 2 },
+        { id: "db", label: "Postgres Cluster", type: "WAL / Read Replicas", x: 490, y: 190, layer: 2 },
+      ]);
+    } else {
+      // Scatter slightly to demonstrate mess
+      setPreviewNodes([
+        { id: "client", label: "Web / Mobile Client", type: "React / Next.js", x: 40, y: 170, layer: 0 },
+        { id: "gateway", label: "API Gateway", type: "Envoy / Reverse Proxy", x: 230, y: 40, layer: 1 },
+        { id: "auth", label: "Auth Service", type: "JWT / OIDC", x: 280, y: 240, layer: 1 },
+        { id: "redis", label: "Redis Session Cache", type: "In-Memory Store", x: 480, y: 30, layer: 2 },
+        { id: "db", label: "Postgres Cluster", type: "WAL / Read Replicas", x: 510, y: 220, layer: 2 },
+      ]);
+    }
+  };
+
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden flex flex-col bg-[var(--background)] text-white selection:bg-purple-500/30 selection:text-purple-200">
+    <div className="min-h-screen w-full flex flex-col bg-[var(--background)] text-[var(--text-primary)] font-sans antialiased selection:bg-blue-600/30 selection:text-blue-100">
       
-      {/* Noise Grain */}
-      <div className="bg-noise"></div>
-
-      {/* Background Lighting & Grid */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-glow-orbs">
-        <HeroParticles />
-        <div className="absolute inset-0 bg-grid-pattern opacity-40"></div>
-        <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-purple-600/15 rounded-full blur-[140px] animate-pulse-slow"></div>
-        <div className="absolute top-[40%] right-[-10%] w-[700px] h-[700px] bg-blue-600/15 rounded-full blur-[160px] animate-pulse-slow" style={{ animationDelay: "2s" }}></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-pink-600/10 rounded-full blur-[140px] animate-pulse-slow" style={{ animationDelay: "4s" }}></div>
-      </div>
-
       {/* Top Navbar */}
-      <header className="relative z-20 w-full border-b border-white/10 bg-[#07070a]/60 backdrop-blur-xl">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-              <Sparkles size={20} className="animate-pulse" />
+            <div className="w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-blue-400 font-mono font-bold text-sm shadow-sm">
+              SB
             </div>
-            <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-100 to-indigo-300">
+            <span className="font-semibold text-base tracking-tight font-mono text-[var(--text-primary)]">
               SynapseBoard
+            </span>
+            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono border border-[var(--border)] text-[var(--text-secondary)] bg-[var(--surface)]">
+              v1.0 Architecture Engine
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => setShowJoinModal(true)}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-2"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] border border-transparent hover:border-[var(--border)] active:scale-95 transition-all flex items-center gap-1.5"
             >
-              <LogIn size={16} />
+              <LogIn size={14} />
               Join Room
             </button>
             <button 
-              onClick={handleCreateBoard}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white text-sm font-semibold shadow-[0_0_25px_rgba(147,51,234,0.3)] hover:shadow-[0_0_35px_rgba(147,51,234,0.5)] hover:scale-[1.02] transition-all flex items-center gap-2"
+              onClick={() => handleCreateBoard()}
+              className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-xs font-semibold hover:bg-[var(--accent-hover)] active:scale-95 transition-all shadow-sm flex items-center gap-1.5"
             >
-              New Board <ArrowRight size={16} />
+              <Plus size={14} /> New Board
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main ref={mainRef} className="relative z-10 flex-1 container mx-auto px-6 pt-12 pb-24 flex flex-col items-center">
+      <main className="flex-1 container mx-auto px-6 pt-10 pb-20 flex flex-col gap-16 max-w-6xl">
         
-        <motion.div 
-          ref={heroRef}
-          variants={staggerContainer} 
-          initial="hidden" 
-          animate="visible" 
-          className="flex flex-col items-center w-full"
-        >
-          {/* Badge Pill */}
-          <motion.div variants={fadeUpVariant} className="glow-pill mb-8">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-purple-200">
-              SynapseBoard 1.0 — Real-Time AI Canvas Engine
-            </span>
-            <ChevronRight size={14} className="text-purple-300" />
-          </motion.div>
-
-          {/* Hero Headline */}
-          <motion.h1 
-            variants={staggerContainer}
-            className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight mb-8 text-center max-w-5xl leading-[1.08]"
-          >
-            <div className="inline-block">
-              {"Think Together.".split("").map((char, index) => (
-                <motion.span key={`t1-${index}`} variants={charVariant} className="inline-block">
-                  {char === " " ? "\u00A0" : char}
-                </motion.span>
-              ))}
-            </div>
-            <br />
-            <div className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-purple-300 via-indigo-200 to-cyan-300 drop-shadow-[0_0_35px_rgba(168,85,247,0.3)]">
-              {"Draw Smarter.".split("").map((char, index) => (
-                <motion.span key={`t2-${index}`} variants={charVariant} className="inline-block">
-                  {char === " " ? "\u00A0" : char}
-                </motion.span>
-              ))}
-            </div>
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p variants={fadeUpVariant} className="text-lg md:text-xl text-gray-400 max-w-2xl text-center mb-12 leading-relaxed font-sans">
-            Production-grade architecture whiteboard with real-time multiplayer, AI diagram suggestions, 350ms Mess Cleanup layout engine, and executable context layers.
-          </motion.p>
-
-          {/* CTA Buttons */}
-          <motion.div variants={fadeUpVariant} className="flex flex-col sm:flex-row items-center gap-4 mb-16 w-full justify-center max-w-md">
-            <button 
-              onClick={handleCreateBoard}
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white font-semibold text-lg shadow-[0_0_40px_rgba(147,51,234,0.35)] hover:shadow-[0_0_60px_rgba(147,51,234,0.6)] hover:scale-[1.03] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-            >
-              <span className="relative z-10 flex items-center gap-3">
-                Launch Canvas <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-white/20 blur-md transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-            </button>
-            <button 
-              onClick={() => setShowJoinModal(true)}
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all backdrop-blur-xl flex items-center justify-center gap-2 spotlight-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-            >
-              <Users size={18} className="text-purple-400" /> Join Existing Room
-            </button>
-          </motion.div>
-        </motion.div>
-
         {/* ===================================================
-            HERO DEMO WIDGET (Simulated Live Canvas Preview)
+            SECTION 1: ASYMMETRIC PRODUCT-LED HERO
            =================================================== */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="w-full max-w-5xl mb-28"
-        >
-          <AnimatedBorder className="glow-card p-2 md:p-4 overflow-hidden shadow-2xl relative w-full h-full">
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center pt-4">
           
-          {/* Top Bar inside Demo Box */}
-          <div className="w-full h-10 border-b border-white/10 bg-[var(--surface-elevated)] rounded-t-lg px-4 flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
-              <span className="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
-              <span className="w-3 h-3 rounded-full bg-green-500/80 inline-block"></span>
-              <span className="ml-2 font-mono text-gray-500">room/arch-review-live</span>
+          {/* Left Column: Engineer-Voice Copy */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-mono font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20 w-fit">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              Deterministic Architecture Whiteboard
             </div>
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                2 Collaborators Online
+
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[var(--text-primary)] leading-[1.15]">
+              Turn system sketches into connected architectures.
+            </h1>
+
+            <p className="text-sm md:text-base text-[var(--text-secondary)] leading-relaxed">
+              A real-time whiteboard built specifically for system architects. Auto-layout directed DAGs in 350ms, compile Mermaid syntax bi-directionally, and keep code specs permanently bound to canvas shapes.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+              <button 
+                onClick={() => handleCreateBoard()}
+                className="px-5 py-3 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white font-semibold text-sm shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 group"
+              >
+                Launch Whiteboard <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
+              <button 
+                onClick={() => setShowJoinModal(true)}
+                className="px-4 py-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] font-semibold text-sm hover:border-[var(--text-secondary)] active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Users size={16} className="text-[var(--text-secondary)]" /> Join with Room ID
+              </button>
+            </div>
+
+            {/* Spec Checks */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-2 text-xs font-mono text-[var(--text-secondary)]">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400" /> 350ms DAG Auto-Layout
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400" /> Bi-directional Mermaid
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-emerald-400" /> Shape-Bound Context Layer
               </span>
             </div>
           </div>
 
-          {/* Canvas Area inside Demo Box */}
-          <div className="w-full h-[380px] md:h-[440px] bg-[#090912] bg-dots-pattern relative overflow-hidden flex items-center justify-center">
-            
-            {/* SVG Connecting Lines */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-              <line x1="15%" y1="35%" x2="50%" y2="35%" stroke="rgba(168, 85, 247, 0.4)" strokeWidth="2" strokeDasharray="6 6" />
-              <line x1="50%" y1="35%" x2="85%" y2="35%" stroke="rgba(59, 130, 246, 0.4)" strokeWidth="2" />
-            </svg>
-
-            {/* Canvas Node 1: Client App */}
-            <div className="absolute left-[5%] md:left-[10%] top-[25%] w-36 md:w-44 h-24 rounded-xl bg-purple-950/40 border border-purple-500/40 backdrop-blur-md p-3 flex flex-col justify-between shadow-[0_0_20px_rgba(168,85,247,0.15)] z-10 transition-all hover:scale-105">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-purple-300">Client App</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 hidden md:block">React</span>
+          {/* Right Column: Live Interactive Product Canvas Preview */}
+          <div className="lg:col-span-7">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-md overflow-hidden flex flex-col">
+              
+              {/* Canvas Header */}
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--background-secondary)] flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/70 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/70 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70 inline-block"></span>
+                  <span className="ml-2 text-[var(--text-primary)] font-semibold">sys/payment-pipeline</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleTriggerMessCleanup}
+                    className="px-2.5 py-1 rounded bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-blue-400 hover:text-blue-300 text-[11px] font-semibold active:scale-95 transition-all flex items-center gap-1.5"
+                    title="Click to run live 350ms topological DAG layout test"
+                  >
+                    <Wand2 size={12} /> {isCleaned ? "Scatter Nodes" : "Run Mess Cleanup (350ms)"}
+                  </button>
+                </div>
               </div>
-              <span className="text-[11px] text-gray-400 font-mono hidden md:block">Next.js</span>
-              <div className="absolute -top-3 -right-2 bg-purple-600 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-lg flex items-center gap-1">
-                <span>📎 2 Notes</span>
+
+              {/* Canvas Interactive Surface */}
+              <div className="relative w-full h-[320px] bg-[var(--background)] bg-dots-pattern overflow-hidden select-none">
+                
+                {/* SVG Connectors */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                  {/* Client to Gateway */}
+                  <line 
+                    x1={previewNodes[0].x + 130} y1={previewNodes[0].y + 24} 
+                    x2={previewNodes[1].x} y2={previewNodes[1].y + 24} 
+                    stroke="rgba(37, 99, 235, 0.45)" strokeWidth="2" strokeDasharray="4 4"
+                  />
+                  {/* Client to Auth */}
+                  <line 
+                    x1={previewNodes[0].x + 130} y1={previewNodes[0].y + 24} 
+                    x2={previewNodes[2].x} y2={previewNodes[2].y + 24} 
+                    stroke="rgba(37, 99, 235, 0.45)" strokeWidth="2" strokeDasharray="4 4"
+                  />
+                  {/* Gateway to Redis */}
+                  <line 
+                    x1={previewNodes[1].x + 130} y1={previewNodes[1].y + 24} 
+                    x2={previewNodes[3].x} y2={previewNodes[3].y + 24} 
+                    stroke="rgba(16, 185, 129, 0.4)" strokeWidth="2"
+                  />
+                  {/* Gateway to Postgres */}
+                  <line 
+                    x1={previewNodes[1].x + 130} y1={previewNodes[1].y + 24} 
+                    x2={previewNodes[4].x} y2={previewNodes[4].y + 24} 
+                    stroke="rgba(16, 185, 129, 0.4)" strokeWidth="2"
+                  />
+                </svg>
+
+                {/* Nodes */}
+                {previewNodes.map((node) => (
+                  <motion.div
+                    key={node.id}
+                    animate={{ x: node.x, y: node.y }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute w-[130px] p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm flex flex-col justify-between z-10 text-left cursor-default hover:border-[var(--accent)] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-semibold text-[var(--text-primary)] truncate">{node.label}</span>
+                    </div>
+                    <span className="text-[9px] font-mono text-[var(--text-secondary)]">{node.type}</span>
+                    
+                    {/* Shape-bound context indicator pill */}
+                    {node.id === "gateway" && (
+                      <div className="mt-1.5 inline-flex items-center gap-1 text-[8px] font-mono font-medium px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/20">
+                        <span>API Spec attached</span>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+
+                {/* Topology Layer Marker Tags */}
+                <div className="absolute bottom-2 left-4 right-4 flex justify-between pointer-events-none text-[10px] font-mono text-[var(--text-muted)] border-t border-[var(--border-subtle)] pt-1">
+                  <span>Layer 0: Ingress</span>
+                  <span>Layer 1: Routing & Auth</span>
+                  <span>Layer 2: Storage & Cache</span>
+                </div>
               </div>
-            </div>
-
-            {/* Canvas Node 2: API Gateway */}
-            <div className="absolute left-[50%] -translate-x-1/2 top-[25%] w-40 md:w-48 h-24 rounded-xl bg-indigo-950/40 border border-indigo-500/40 backdrop-blur-md p-3 flex flex-col justify-between shadow-[0_0_20px_rgba(99,102,241,0.15)] z-10 transition-all hover:scale-105">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-indigo-300">API Gateway</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-200 hidden md:block">Express</span>
-              </div>
-              <span className="text-[11px] text-gray-400 font-mono hidden md:block">REST & WS</span>
-              <div className="absolute -top-3 -right-2 bg-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-lg flex items-center gap-1">
-                <span>🤖 AI Suggestion</span>
-              </div>
-            </div>
-
-            {/* Canvas Node 3: Postgres Database */}
-            <div className="absolute right-[5%] md:right-[10%] top-[25%] w-36 md:w-44 h-24 rounded-xl bg-emerald-950/40 border border-emerald-500/40 backdrop-blur-md p-3 flex flex-col justify-between shadow-[0_0_20px_rgba(16,185,129,0.15)] z-10 transition-all hover:scale-105">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-300">Postgres DB</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-200 hidden md:block">Supabase</span>
-              </div>
-              <span className="text-[11px] text-gray-400 font-mono hidden md:block">Persistence</span>
-            </div>
-
-            {/* AI Ghost Shape Preview Overlay */}
-            <div className="absolute bottom-[15%] left-[50%] -translate-x-1/2 w-48 h-20 rounded-xl border-2 border-dashed border-cyan-400/50 bg-cyan-950/20 backdrop-blur-sm p-3 flex items-center justify-center animate-pulse z-10">
-              <span className="text-xs font-medium text-cyan-300 flex items-center gap-1.5">
-                <Sparkles size={14} /> AI Ghost: Redis Cache
-              </span>
-            </div>
-
-            {/* Simulated Live Cursor 1: Alex */}
-            <div 
-              className="absolute z-30 transition-all duration-75 pointer-events-none flex items-center gap-1"
-              style={{ left: `calc(15% + ${cursorAlex.x}px)`, top: `calc(35% + ${cursorAlex.y}px)` }}
-            >
-              <MousePointer2 size={18} className="text-pink-400 fill-pink-400 drop-shadow-md" />
-              <span className="px-2 py-0.5 rounded-full bg-pink-500 text-white text-[10px] font-semibold shadow-md whitespace-nowrap">
-                Alex (Architect)
-              </span>
-            </div>
-
-            {/* Simulated Live Cursor 2: Sarah */}
-            <div 
-              className="absolute z-30 transition-all duration-75 pointer-events-none flex items-center gap-1"
-              style={{ left: `calc(60% + ${cursorSarah.x}px)`, top: `calc(45% + ${cursorSarah.y}px)` }}
-            >
-              <MousePointer2 size={18} className="text-cyan-400 fill-cyan-400 drop-shadow-md" />
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500 text-black text-[10px] font-bold shadow-md whitespace-nowrap">
-                Sarah (Eng)
-              </span>
             </div>
           </div>
-          </AnimatedBorder>
-        </motion.div>
+        </section>
 
         {/* ===================================================
-            INTERACTIVE FEATURE SHOWCASE TABS
+            SECTION 2: RECENT BOARDS / ROOM DASHBOARD
            =================================================== */}
-        <motion.div 
-          initial={{ opacity: 0, y: 50 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-5xl mb-28"
-        >
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-indigo-300">
-              Engineered for Modern Systems
+        <section className="flex flex-col gap-4 border-t border-[var(--border)] pt-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers size={18} className="text-blue-400" />
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Your Architecture Boards</h2>
+            </div>
+            <button
+              onClick={() => handleCreateBoard()}
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+            >
+              <Plus size={14} /> Create Blank Board
+            </button>
+          </div>
+
+          {recentBoards.length === 0 ? (
+            <div className="p-8 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-center flex flex-col items-center justify-center gap-3">
+              <Clock size={24} className="text-[var(--text-muted)]" />
+              <span className="text-xs font-medium text-[var(--text-secondary)]">No recent architecture boards yet.</span>
+              <button
+                onClick={() => handleCreateBoard("Primary System Architecture")}
+                className="px-3.5 py-2 rounded-lg bg-[var(--accent)] text-white text-xs font-semibold hover:bg-[var(--accent-hover)] active:scale-95 transition-all"
+              >
+                Create your first board
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {recentBoards.map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => router.push(`/board/${b.id}`)}
+                  className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--text-secondary)] transition-all cursor-pointer flex flex-col justify-between gap-3 group shadow-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="font-semibold text-sm text-[var(--text-primary)] group-hover:text-blue-400 transition-colors line-clamp-1">
+                      {b.name}
+                    </span>
+                    <button
+                      onClick={(e) => handleDeleteRecentBoard(e, b.id)}
+                      className="p-1 text-[var(--text-muted)] hover:text-red-400 rounded transition-colors"
+                      title="Remove from recents"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)]">
+                    <span>ID: {b.id.substring(0, 8)}</span>
+                    <span>{new Date(b.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ===================================================
+            SECTION 3: ASYMMETRIC BENTO GRID (ENGINEERING SUITE)
+           =================================================== */}
+        <section className="flex flex-col gap-6 border-t border-[var(--border)] pt-10">
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
+              Built for production architecture specifications.
             </h2>
-            <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-base">
-              Explore the core feature suite powering real-time system architecture and collaborative diagramming.
+            <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1">
+              Zero fluff. Features built to make engineering reviews, RFC diagrams, and topology models clear and permanent.
             </p>
           </div>
 
-          {/* Showcase Tabs */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8 p-1.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl max-w-2xl mx-auto">
-            <button
-              onClick={() => setActiveTab("ai")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
-                activeTab === "ai" 
-                  ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <Sparkles size={16} /> AI Assist
-            </button>
-            <button
-              onClick={() => setActiveTab("layout")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
-                activeTab === "layout" 
-                  ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <Wand2 size={16} /> Mess Cleanup
-            </button>
-            <button
-              onClick={() => setActiveTab("context")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
-                activeTab === "context" 
-                  ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <FileCode2 size={16} /> Context Layer
-            </button>
-            <button
-              onClick={() => setActiveTab("replay")}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center gap-2 ${
-                activeTab === "replay" 
-                  ? "bg-purple-600 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)]" 
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              <History size={16} /> Time-Travel
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Bento Card 1: Hero Feature (Large 2 cols) */}
+            <div className="md:col-span-2 p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col justify-between gap-6 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Wand2 size={16} />
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">350ms DAG Mess Cleanup Engine</h3>
+                <p className="text-xs md:text-sm text-[var(--text-secondary)] leading-relaxed max-w-xl">
+                  Drawing boxes during architecture syncs is naturally messy. Click Mess Cleanup to trigger a deterministic topological layer sort. Nodes align into clean hierarchical tiers with zero connector loss and cubic-bezier motion physics.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] font-mono text-xs text-[var(--text-secondary)] flex items-center justify-between">
+                <span>Topological Sort: Directed Acyclic Graph</span>
+                <span className="text-blue-400 font-semibold tabular-nums">350ms Execution</span>
+              </div>
+            </div>
+
+            {/* Bento Card 2: Context Layer (1 col) */}
+            <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col justify-between gap-6 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <FileCode2 size={16} />
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Shape Context Layer</h3>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Attach API contracts, SQL schemas, markdown notes, and external documentation directly to individual diagram nodes. No disconnected Notion pages.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] font-mono text-[11px] text-emerald-400 flex items-center justify-between">
+                <span>Shape Metadata</span>
+                <span>Persistent</span>
+              </div>
+            </div>
+
+            {/* Bento Card 3: Bi-directional Mermaid (1 col) */}
+            <div className="p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col justify-between gap-6 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                  <Terminal size={16} />
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Mermaid Import / Export</h3>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  Paste Mermaid.js flowchart code to generate an editable whiteboard graph, or export active canvas architectures directly into standard Mermaid syntax.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] font-mono text-[11px] text-cyan-400">
+                graph TD; A--&gt;B; B--&gt;C;
+              </div>
+            </div>
+
+            {/* Bento Card 4: Time Travel Replay (Large 2 cols) */}
+            <div className="md:col-span-2 p-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col justify-between gap-6 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <History size={16} />
+                </div>
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">Time-Travel Architecture Replay</h3>
+                <p className="text-xs md:text-sm text-[var(--text-secondary)] leading-relaxed max-w-xl">
+                  Scrub backwards and forwards through system evolution. Every shape modification, connector addition, and service redesign is captured in remote snapshot history without polluting your local undo/redo stack.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] font-mono text-xs text-[var(--text-secondary)] flex items-center justify-between">
+                <span>Snapshot History: 50 Steps</span>
+                <span className="text-amber-400 font-semibold">Protected Undo Stack</span>
+              </div>
+            </div>
+
           </div>
-
-          {/* Showcase Tab Contents */}
-          <div className="glow-card p-8 min-h-[280px] flex flex-col justify-center">
-            {activeTab === "ai" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
-                <div>
-                  <h3 className="text-2xl font-bold mb-3 text-white">AI Copilot & Architecture Assist</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Type a prompt like <em className="text-purple-300">&quot;Add a microservice architecture with Redis cache and API gateway&quot;</em>. SynapseBoard streams ghost shapes onto the canvas in real time.
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-purple-300 font-semibold">
-                    <CheckCircle2 size={16} className="text-emerald-400" /> Press <kbd className="px-2 py-0.5 rounded bg-white/10 font-mono text-white">Tab</kbd> to accept ghost shape suggestions instantly.
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#090912] border border-white/10 font-mono text-xs text-cyan-300 leading-relaxed shadow-inner">
-                  <span className="text-gray-500">{"// Streaming AI Architecture Assist..."}</span><br />
-                  <span className="text-purple-400">POST</span> /api/ai/architecture-assist<br />
-                  <span className="text-emerald-400">✓ Recommendation:</span> Insert Redis Cache cluster<br />
-                  <span className="text-emerald-400">✓ Recommendation:</span> Add Kafka Message Queue<br />
-                  <span className="text-amber-400">⚡ Status:</span> 2 Ghost shapes ready for canvas commit
-                </div>
-              </div>
-            )}
-
-            {activeTab === "layout" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
-                <div>
-                  <h3 className="text-2xl font-bold mb-3 text-white">Mess Cleanup Engine</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Stop manually aligning canvas boxes. One click triggers a 350ms cubic-bezier animated auto-layout that reorganizes messy canvas nodes into clean hierarchical DAG layers.
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-indigo-300 font-semibold">
-                    <CheckCircle2 size={16} className="text-emerald-400" /> Cubic-bezier easing physics with zero layout overlap.
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#090912] border border-white/10 flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400 border-b border-white/10 pb-2">
-                    <span>DAG Topology Matrix</span>
-                    <span className="text-indigo-400 font-mono tabular-nums">Layout Physics: 350ms</span>
-                  </div>
-                  <div className="flex items-center justify-around py-4">
-                    <div className="px-3 py-1.5 rounded bg-purple-500/20 border border-purple-500/40 text-purple-300 text-xs">Layer 0</div>
-                    <span className="text-gray-600">➔</span>
-                    <div className="px-3 py-1.5 rounded bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs">Layer 1</div>
-                    <span className="text-gray-600">➔</span>
-                    <div className="px-3 py-1.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs">Layer 2</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "context" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
-                <div>
-                  <h3 className="text-2xl font-bold mb-3 text-white">Executable Context Layer</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Attach notes, reference links, code snippets with syntax highlighting, and file documents directly to individual shapes with visual canvas context badges.
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-cyan-300 font-semibold">
-                    <CheckCircle2 size={16} className="text-emerald-400" /> Interactive glowing badges render directly on canvas shapes.
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#090912] border border-white/10 flex flex-col gap-2 font-mono text-xs">
-                  <div className="p-2 rounded bg-white/5 border border-white/10 flex items-center justify-between text-purple-300">
-                    <span>📝 Rich Text Notes</span>
-                    <span className="text-gray-500">Auto-saved</span>
-                  </div>
-                  <div className="p-2 rounded bg-white/5 border border-white/10 flex items-center justify-between text-blue-300">
-                    <span>🔗 External Docs Link</span>
-                    <span className="text-gray-500">https://api.docs</span>
-                  </div>
-                  <div className="p-2 rounded bg-white/5 border border-white/10 flex items-center justify-between text-emerald-300">
-                    <span>💻 Code Snippet (TypeScript)</span>
-                    <span className="text-gray-500">Syntax Highlighted</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "replay" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center animate-fade-in">
-                <div>
-                  <h3 className="text-2xl font-bold mb-3 text-white">Time-Travel Replay</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-4">
-                    Scrub through diagram history step-by-step with interactive playback controls. Review how your team&apos;s architecture evolved over time.
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-emerald-300 font-semibold">
-                    <CheckCircle2 size={16} className="text-emerald-400" /> Up to 50 historical canvas snapshots supported.
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#090912] border border-white/10 flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>History Slider <span className="tabular-nums font-mono">(Step 12 / 24)</span></span>
-                    <span className="text-emerald-400">Playing @ 1x</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-purple-500 to-emerald-400 w-1/2"></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* ===================================================
-            STATS & METRICS BAR
-           =================================================== */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl mb-24"
-        >
-          <StatCard number="350" suffix="ms" label="Auto-Align Layout" icon={<Zap className="text-yellow-400" />} />
-          <StatCard number="100" suffix="%" label="Type-Safe Codebase" icon={<ShieldCheck className="text-emerald-400" />} />
-          <StatCard number="0" prefix="Instant" label="Mermaid Export" icon={<FileCode2 className="text-blue-400" />} noCount />
-          <StatCard number="0" prefix="Live" label="Multiplayer Sync" icon={<Users className="text-purple-400" />} noCount />
-        </motion.div>
+        </section>
 
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-white/10 bg-[#050508] py-8 text-center text-xs text-gray-500">
+      {/* Clean Footer */}
+      <footer className="border-t border-[var(--border)] bg-[var(--background-secondary)] py-6 text-xs text-[var(--text-secondary)] font-mono">
         <div className="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span>© 2026 SynapseBoard. Production-grade architecture whiteboard.</span>
+          <span>SynapseBoard — Deterministic Architecture Whiteboard Engine.</span>
           <div className="flex items-center gap-6">
-            <a href="https://github.com/Tejas3479/whiteboard" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-1">
-              GitHub Repository <ExternalLink size={12} />
+            <a 
+              href="https://github.com/Tejas3479/whiteboard" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+            >
+              GitHub Repository <ArrowUpRight size={12} />
             </a>
           </div>
         </div>
@@ -536,99 +459,64 @@ export default function LandingPage() {
       {/* ===================================================
           JOIN ROOM MODAL
          =================================================== */}
-      {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
-          <div className="w-full max-w-md p-6 bg-[#0f0f18] border border-white/10 rounded-2xl shadow-2xl flex flex-col gap-5 animate-fade-in-scale">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <LogIn size={20} className="text-purple-400" />
-                <h3 className="font-bold text-lg text-white">Join Whiteboard Room</h3>
-              </div>
-              <button 
-                onClick={() => setShowJoinModal(false)}
-                className="text-gray-400 hover:text-white text-sm font-bold px-2 py-1 rounded hover:bg-white/5"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Enter a room ID code or paste a full SynapseBoard link to join a collaborative session.
-            </p>
-
-            <form onSubmit={handleJoinRoom} className="flex flex-col gap-4">
-              <input 
-                type="text"
-                value={roomIdInput}
-                onChange={(e) => setRoomIdInput(e.target.value)}
-                placeholder="e.g. ab12cd34ef or full link"
-                className="w-full px-4 py-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder-gray-500 outline-none focus:border-purple-500 transition-all text-sm font-mono"
-                autoFocus
-              />
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
+      <AnimatePresence>
+        {showJoinModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <motion.div 
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-md p-6 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl flex flex-col gap-4"
+            >
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                <div className="flex items-center gap-2">
+                  <LogIn size={18} className="text-blue-400" />
+                  <h3 className="font-bold text-sm text-[var(--text-primary)]">Join Whiteboard Session</h3>
+                </div>
+                <button 
                   onClick={() => setShowJoinModal(false)}
-                  className="px-4 py-2 rounded-xl border border-white/10 text-xs font-medium text-gray-300 hover:bg-white/5"
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm font-bold p-1 rounded"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!roomIdInput.trim()}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Join Board <ArrowRight size={14} />
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Enter a room ID or paste a full SynapseBoard link to collaborate with your team.
+              </p>
+
+              <form onSubmit={handleJoinRoom} className="flex flex-col gap-3">
+                <input 
+                  type="text"
+                  value={roomIdInput}
+                  onChange={(e) => setRoomIdInput(e.target.value)}
+                  placeholder="e.g. ab12cd34ef or board URL"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-blue-500 transition-all text-xs font-mono"
+                  autoFocus
+                />
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowJoinModal(false)}
+                    className="px-3.5 py-2 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!roomIdInput.trim()}
+                    className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-[var(--accent-hover)] disabled:opacity-40 transition-all"
+                  >
+                    Join Session <ArrowRight size={13} />
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-const StatCard = React.memo(function StatCard({ number, suffix = "", prefix = "", label, icon, noCount = false }: { number: string | number; suffix?: string; prefix?: string; label: string; icon: React.ReactNode, noCount?: boolean }) {
-  const [count, setCount] = useState(noCount ? number : 0);
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
-
-  useEffect(() => {
-    if (isInView && !noCount) {
-      const end = parseInt(number.toString());
-      if (isNaN(end)) return;
-      
-      const duration = 2000;
-      const startTime = Date.now();
-      
-      const animate = () => {
-        const now = Date.now();
-        const progress = Math.min((now - startTime) / duration, 1);
-        // easeOutQuart
-        const ease = 1 - Math.pow(1 - progress, 4);
-        
-        setCount(Math.floor(ease * end));
-        
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        }
-      };
-      
-      requestAnimationFrame(animate);
-    }
-  }, [isInView, number, noCount]);
-
-  return (
-    <AnimatedBorder>
-      <div ref={ref} className="glow-card p-6 flex flex-col items-center text-center w-full h-full min-h-[140px]">
-        <div className="mb-2 p-2 rounded-lg bg-white/5">{icon}</div>
-        <span className="text-2xl md:text-3xl font-extrabold text-white mb-1 font-mono tabular-nums tracking-tight">
-          {prefix}{noCount ? "" : count}{suffix}
-        </span>
-        <span className="text-xs text-gray-400 font-medium">{label}</span>
-      </div>
-    </AnimatedBorder>
-  );
-});

@@ -70,7 +70,7 @@ export function UndoRedo({ editor }: UndoRedoProps) {
         disabled={!canUndo}
         aria-label="Undo"
         data-tooltip="Undo (Ctrl+Z)"
-        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Undo size={15} />
       </button>
@@ -85,7 +85,7 @@ export function UndoRedo({ editor }: UndoRedoProps) {
         disabled={!canRedo}
         aria-label="Redo"
         data-tooltip="Redo (Ctrl+Shift+Z)"
-        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Redo size={15} />
       </button>

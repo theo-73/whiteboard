@@ -126,14 +126,14 @@ export function ContextBadges({ editor }: ContextBadgesProps) {
             e.stopPropagation();
             openContextPanel(b.shapeId, b.shapeLabel);
           }}
-          className="pointer-events-auto absolute top-0 left-0 flex items-center gap-1 px-2 py-1 rounded-full bg-purple-600/90 hover:bg-purple-500 text-white text-[11px] font-bold shadow-lg border border-purple-300/40 backdrop-blur-md transition-all duration-150 hover:scale-110 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="pointer-events-auto absolute top-0 left-0 flex items-center gap-1 px-2 py-1 rounded-full bg-blue-600/90 hover:bg-blue-500 text-white text-[11px] font-bold shadow-lg border border-blue-400/40 backdrop-blur-md transition-all duration-150 hover:scale-105 group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           style={{
             transform: `translate3d(${b.x}px, ${b.y}px, 0)`,
           }}
           aria-label={`Context Layer: ${b.totalCount} attachments. Click to view.`}
         >
           {b.filesCount > 0 ? (
-            <Paperclip size={12} className="text-purple-200" />
+            <Paperclip size={12} className="text-blue-200" />
           ) : b.codeCount > 0 ? (
             <Code2 size={12} className="text-green-300" />
           ) : b.linksCount > 0 ? (
@@ -149,7 +149,7 @@ export function ContextBadges({ editor }: ContextBadgesProps) {
             className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity pointer-events-none z-50 bg-black/90 text-white border border-white/20 shadow-xl backdrop-blur-md"
             aria-hidden="true"
           >
-            <span className="font-semibold text-purple-300">{b.shapeLabel}</span>
+            <span className="font-semibold text-blue-300">{b.shapeLabel}</span>
             <div className="flex items-center gap-2 mt-0.5 text-gray-300">
               {b.notesCount > 0 && <span>• Notes</span>}
               {b.linksCount > 0 && <span>• {b.linksCount} Links</span>}

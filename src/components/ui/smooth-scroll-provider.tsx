@@ -58,7 +58,7 @@ export function SmoothScrollProvider({ children }: { children: ReactNode }) {
         <div className="fixed top-0 left-0 right-0 h-1 z-50 pointer-events-none">
           <div 
             ref={progressRef} 
-            className="h-full bg-gradient-to-r from-purple-500 to-cyan-500 origin-left scale-x-0 transition-transform duration-75"
+            className="h-full bg-blue-500 origin-left scale-x-0 transition-transform duration-75"
           />
         </div>
       )}

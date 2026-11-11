@@ -55,7 +55,7 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
         onClick={handleZoomOut}
         aria-label="Zoom out"
         data-tooltip="Zoom out (-)"
-        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Minus size={15} />
       </button>
@@ -71,7 +71,7 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
         onClick={handleZoomIn}
         aria-label="Zoom in"
         data-tooltip="Zoom in (+)"
-        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Plus size={15} />
       </button>
@@ -85,7 +85,7 @@ export function ZoomControls({ editor }: ZoomControlsProps) {
         onClick={handleZoomFit}
         aria-label="Fit to screen"
         data-tooltip="Fit to screen (Shift+1)"
-        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="tooltip w-8 h-8 md:w-7 md:h-7 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-400 hover:text-gray-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <Maximize2 size={14} />
       </button>

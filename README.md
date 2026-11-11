@@ -26,18 +26,18 @@
   - **Scalability & Observability:** e.g. *Kafka/RabbitMQ Queues & OpenTelemetry/Prometheus*
 - **1-Click Canvas Insertion:** Actionable cards feature a **"+ Add [Node Label] to Canvas"** button that automatically creates and offsets missing services directly on your whiteboard.
 
-### 📎 3. Executable Context Layer & Visual On-Canvas Badges
+### 📎 3. Shape Context Layer & Visual On-Canvas Badges
 - **Per-Element Context Attachment:** Attach comprehensive metadata to any element on the canvas:
-  - **Rich Text Notes:** Architectural specifications, API contracts, and schema definitions with live auto-save indicators.
+  - **Plain Text Architecture Notes:** Architectural specifications, API contracts, and schema definitions with live auto-save indicators.
   - **Reference Links:** URL manager for Swagger docs, Figma mockups, and GitHub repositories.
-  - **Code Snippets:** Syntax-highlighted code blocks supporting `TypeScript`, `SQL Schema`, `JSON Payload`, `Python`, and `Bash`.
+  - **Code Snippets:** Code editor blocks supporting `TypeScript`, `SQL Schema`, `JSON Payload`, `Python`, and `Bash`.
   - **File Attachments:** Drag-and-drop file uploader supporting images, PDFs, and spec documents.
-- **On-Canvas Visual Badges:** Projects glowing interactive badges (`FileText`, `Link`, `Code2`, `Paperclip`) with item counters directly over shape viewport coordinates. Clicking any shape badge launches its Context Panel.
+- **On-Canvas Visual Badges:** Projects interactive badges (`FileText`, `Link`, `Code2`, `Paperclip`) with item counters directly over shape viewport coordinates. Clicking any shape badge launches its Context Panel.
 
 ### 🤖 4. AI Copilot & On-Canvas "Ghost Shapes"
 - **AI Diagram Streaming:** Describe any cloud or software system (e.g. *"AWS Serverless Architecture with CloudFront, Lambda, and DynamoDB"*) to stream structured architecture nodes and edges in real-time.
 - **On-Canvas Ghost Shapes:** Renders semi-transparent (`opacity: 0.45`, dashed grey) ghost shapes directly at target coordinates on the canvas before committing.
-- **1-Key Tab Commit:** Press **Tab** or click **Accept** to instantly convert ghost shapes into solid, synced tldraw canvas shapes.
+- **1-Key Tab Commit:** Press **Tab** or click **Accept** to instantly convert ghost shapes into solid, synced tldraw canvas shapes with bound arrows.
 
 ### 🧬 5. Mermaid-to-Canvas Compiler (Two-Way Sync)
 - **Import Mermaid Markdown:** Paste any standard Mermaid syntax (e.g. from ChatGPT or GitHub docs) to compile it into interactive, movable tldraw shapes.
@@ -54,7 +54,7 @@
 
 ### 💾 8. Supabase Postgres Room & Snapshot Persistence
 - **Persistent Rooms:** Database storage backed by Supabase Postgres with Row Level Security (RLS) policies for room titles, access states, and canvas state snapshots across server restarts.
-- **Seamless Local Fallback:** Gracefully falls back to an in-memory persistent store when Supabase environment variables are not supplied.
+- **Honest State Handling:** Returns true 404 responses for deleted or non-existent rooms with 1-click initialization, enforces a 5MB payload ceiling on snapshots, and flushes canvas updates via `sendBeacon` on tab close.
 
 ---
 

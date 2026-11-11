@@ -3,28 +3,14 @@
 import React, { useEffect, useCallback, useState } from 'react';
 import { X, Sparkles, SendHorizontal, Check, X as XIcon, Eye, ShieldAlert, Cpu, Plus } from 'lucide-react';
 import { useAppStore, AISuggestion } from '@/store/app-store';
-import { Editor, createShapeId, TLShapeId } from 'tldraw';
-import { ArchitectureRecommendation } from '@/app/api/ai/architecture-assist/route';
+import { Editor, createShapeId, TLShapeId, TLShapePartial } from 'tldraw';
+import { toRichText } from '@tldraw/tlschema';
+import { ArchitectureRecommendation, StreamNode, StreamEdge } from '@/types/ai';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUiSounds } from '@/lib/use-ui-sounds';
 
 interface AiPanelProps {
   editor?: Editor | null;
-}
-
-interface StreamNode {
-  id?: string;
-  label?: string;
-  shape?: string;
-  x?: number;
-  y?: number;
-}
-
-interface StreamEdge {
-  id?: string;
-  label?: string;
-  source?: string;
-  target?: string;
 }
 
 interface ParsedSuggestionData {
@@ -67,6 +53,7 @@ export function AiPanel({ editor }: AiPanelProps) {
   const [activeTab, setActiveTab] = useState<'prompt' | 'assist'>('assist');
   const [recommendations, setRecommendations] = useState<ArchitectureRecommendation[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
 
   const quickSuggestions = [
     "Auth Flow", "API Architecture", "Database Schema", "AWS Serverless", "Kubernetes Cluster", "Kafka Event Pipeline"
@@ -117,14 +104,14 @@ export function AiPanel({ editor }: AiPanelProps) {
           color: 'grey',
           fill: 'pattern',
           dash: 'dashed',
-          text: `Ghost: ${n.label || 'Node'}`,
+          richText: toRichText(`Ghost: ${n.label || 'Node'}`),
         },
       });
     });
 
-    const edges: StreamEdge[] = parsedData.edges || [
-      { source: nodes[0]?.id || '0', target: nodes[1]?.id || '1' },
-      { source: nodes[1]?.id || '1', target: nodes[2]?.id || '2' },
+    const edges: StreamEdge[] = (parsedData.edges && parsedData.edges.length > 0) ? parsedData.edges : [
+      { id: 'e-1', source: nodes[0]?.id || '0', target: nodes[1]?.id || '1' },
+      { id: 'e-2', source: nodes[1]?.id || '1', target: nodes[2]?.id || '2' },
     ];
 
     edges.forEach((e, idx) => {
@@ -147,7 +134,7 @@ export function AiPanel({ editor }: AiPanelProps) {
       });
     });
 
-    editor.createShapes(newGhostShapes as unknown as Parameters<typeof editor.createShapes>[0]);
+    editor.createShapes(newGhostShapes as TLShapePartial[]);
     setGhostShapeIds(createdGhostIds);
   }, [editor, setGhostShapeIds, playClick]);
 
@@ -156,7 +143,7 @@ export function AiPanel({ editor }: AiPanelProps) {
     if (editor) {
       if (ghostShapeIds.length > 0) {
         try {
-          editor.deleteShapes(ghostShapeIds as unknown as Parameters<typeof editor.deleteShapes>[0]);
+          editor.deleteShapes(ghostShapeIds as TLShapeId[]);
         } catch {
           // ignore
         }
@@ -181,7 +168,7 @@ export function AiPanel({ editor }: AiPanelProps) {
       ];
 
       const shapeMap: Record<string, TLShapeId> = {};
-      const newShapes: Array<Record<string, unknown>> = [];
+      const newShapes: TLShapePartial[] = [];
 
       nodes.forEach((n, idx) => {
         const shapeId = createShapeId();
@@ -202,37 +189,65 @@ export function AiPanel({ editor }: AiPanelProps) {
             geo: n.shape === 'ellipse' || n.shape === 'cylinder' ? 'ellipse' : 'rectangle',
             w: 160,
             h: 80,
-            color: idx === 0 ? 'violet' : idx === 1 ? 'blue' : 'green',
+            color: idx === 0 ? 'blue' : idx === 1 ? 'violet' : 'green',
             fill: 'semi',
             dash: 'draw',
-            text: n.label || 'Node',
+            richText: toRichText(n.label || 'Node'),
           },
         });
       });
 
-      const edges: StreamEdge[] = parsedData.edges || [
-        { source: nodes[0]?.id || '0', target: nodes[1]?.id || '1' },
-        { source: nodes[1]?.id || '1', target: nodes[2]?.id || '2' },
+      const edges: StreamEdge[] = (parsedData.edges && parsedData.edges.length > 0) ? parsedData.edges : [
+        { id: 'e-1', source: nodes[0]?.id || '0', target: nodes[1]?.id || '1' },
+        { id: 'e-2', source: nodes[1]?.id || '1', target: nodes[2]?.id || '2' },
       ];
 
-      edges.forEach((e, idx) => {
-        const startX = center.x - 60 + idx * 220;
-        const startY = center.y;
+      const bindingsToCreate: Array<{
+        type: 'arrow';
+        fromId: TLShapeId;
+        toId: TLShapeId;
+        props: { terminal: 'start' | 'end'; normalizedAnchor: { x: number; y: number }; isExact: boolean; isPrecise: boolean };
+      }> = [];
+
+      edges.forEach((e) => {
+        const sourceShapeId = e.source ? shapeMap[e.source] : undefined;
+        const targetShapeId = e.target ? shapeMap[e.target] : undefined;
+        const arrowId = createShapeId();
+
         newShapes.push({
-          id: createShapeId(),
+          id: arrowId,
           type: 'arrow',
-          x: startX,
-          y: startY,
           props: {
             start: { x: 0, y: 0 },
             end: { x: 90, y: 0 },
             dash: 'draw',
-            color: 'violet',
+            color: 'blue',
+            richText: toRichText(e.label || ''),
           },
         });
+
+        if (sourceShapeId) {
+          bindingsToCreate.push({
+            type: 'arrow',
+            fromId: arrowId,
+            toId: sourceShapeId,
+            props: { terminal: 'start', normalizedAnchor: { x: 1, y: 0.5 }, isExact: false, isPrecise: false },
+          });
+        }
+        if (targetShapeId) {
+          bindingsToCreate.push({
+            type: 'arrow',
+            fromId: arrowId,
+            toId: targetShapeId,
+            props: { terminal: 'end', normalizedAnchor: { x: 0, y: 0.5 }, isExact: false, isPrecise: false },
+          });
+        }
       });
 
-      editor.createShapes(newShapes as unknown as Parameters<typeof editor.createShapes>[0]);
+      editor.createShapes(newShapes);
+      if (bindingsToCreate.length > 0) {
+        editor.createBindings(bindingsToCreate);
+      }
     }
     removeAiSuggestion(sugg.id);
   }, [editor, ghostShapeIds, clearGhostShapeIds, removeAiSuggestion, playSuccess]);
@@ -241,7 +256,7 @@ export function AiPanel({ editor }: AiPanelProps) {
     playClick();
     if (editor && ghostShapeIds.length > 0) {
       try {
-        editor.deleteShapes(ghostShapeIds as unknown as Parameters<typeof editor.deleteShapes>[0]);
+        editor.deleteShapes(ghostShapeIds as TLShapeId[]);
       } catch {
         // ignore
       }
@@ -284,8 +299,17 @@ export function AiPanel({ editor }: AiPanelProps) {
         body: JSON.stringify({ shapes: shapesData }),
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error(`Architecture assist failed: ${response.statusText}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const errMsg = errData?.error || `Architecture assist failed (${response.status})`;
+        setAiErrorMessage(errMsg);
+        setIsAnalyzing(false);
+        return;
+      }
+      setAiErrorMessage(null);
+
+      if (!response.body) {
+        throw new Error('No streaming response body received');
       }
 
       const reader = response.body.getReader();
@@ -357,7 +381,7 @@ export function AiPanel({ editor }: AiPanelProps) {
           h: 80,
           color: 'blue',
           fill: 'semi',
-          text: node.label,
+          richText: toRichText(node.label),
         },
       },
     ];
@@ -379,26 +403,32 @@ export function AiPanel({ editor }: AiPanelProps) {
           x: targetShape.x,
           y: targetShape.y,
           props: {
-            start: {
-              type: 'binding',
-              boundShapeId: targetShape.id,
-              normalizedAnchor: { x: 0.5, y: 0.5 },
-              isExact: false,
-            },
-            end: {
-              type: 'binding',
-              boundShapeId: newNodeId,
-              normalizedAnchor: { x: 0.5, y: 0.5 },
-              isExact: false,
-            },
+            start: { x: 0, y: 0 },
+            end: { x: targetX - targetShape.x, y: targetY - targetShape.y },
             color: 'blue',
             dash: 'draw',
           },
         });
+        editor.createShapes(shapesToCreate as TLShapePartial[]);
+        editor.createBindings([
+          {
+            type: 'arrow',
+            fromId: arrowId,
+            toId: targetShape.id,
+            props: { terminal: 'start', normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false },
+          },
+          {
+            type: 'arrow',
+            fromId: arrowId,
+            toId: newNodeId,
+            props: { terminal: 'end', normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false },
+          },
+        ]);
+        return;
       }
     }
 
-    editor.createShapes(shapesToCreate as Parameters<typeof editor.createShapes>[0]);
+    editor.createShapes(shapesToCreate as TLShapePartial[]);
   };
 
   const handleSubmitPrompt = async (e: React.FormEvent) => {
@@ -417,8 +447,23 @@ export function AiPanel({ editor }: AiPanelProps) {
         body: JSON.stringify({ prompt: currentPrompt }),
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error(`AI suggestion failed: ${response.statusText}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        const errMsg = errData?.error || `AI suggestion failed (${response.status})`;
+        setAiErrorMessage(errMsg);
+        addAiSuggestion({
+          id: Date.now().toString(),
+          title: 'AI Unavailable',
+          description: errMsg,
+          status: 'rejected',
+        });
+        setIsAiThinking(false);
+        return;
+      }
+      setAiErrorMessage(null);
+
+      if (!response.body) {
+        throw new Error('No streaming response body received');
       }
 
       const reader = response.body.getReader();
@@ -495,12 +540,12 @@ export function AiPanel({ editor }: AiPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-1.5 rounded-lg shadow-md">
+          <div className="bg-blue-600 p-1.5 rounded-lg shadow-sm border border-blue-400/30">
             <Sparkles size={16} className="text-white" />
           </div>
           <div>
             <h2 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>AI Copilot & Architecture Assist</h2>
-            <span className="text-[10px] text-purple-400 font-mono">Game-Changer AI Intelligence</span>
+            <span className="text-[10px] text-blue-400 font-mono">Architecture Intelligence & Diagram Synthesis</span>
           </div>
         </div>
         <button 
@@ -517,7 +562,7 @@ export function AiPanel({ editor }: AiPanelProps) {
           onClick={() => { playClick(); setActiveTab('assist'); }}
           onMouseEnter={playHover}
           className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'assist' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+            activeTab === 'assist' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
           }`}
         >
           <Cpu size={14} /> Architecture Assist
@@ -527,7 +572,7 @@ export function AiPanel({ editor }: AiPanelProps) {
           onClick={() => { playClick(); setActiveTab('prompt'); }}
           onMouseEnter={playHover}
           className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'prompt' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'
+            activeTab === 'prompt' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
           }`}
         >
           <Sparkles size={14} /> Generate Diagram
@@ -536,11 +581,21 @@ export function AiPanel({ editor }: AiPanelProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        {aiErrorMessage && (
+          <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs flex items-start gap-2 animate-fade-in">
+            <ShieldAlert size={16} className="flex-shrink-0 mt-0.5 text-amber-400" />
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-white">AI Service Unavailable</span>
+              <span className="text-[11px] text-gray-300 leading-relaxed">{aiErrorMessage}</span>
+            </div>
+          </div>
+        )}
+
         {/* MODE 1: ARCHITECTURE ASSIST */}
         {activeTab === 'assist' && (
           <div className="flex flex-col gap-4">
-            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex flex-col gap-2">
-              <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex flex-col gap-2">
+              <span className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
                 <Cpu size={14} /> Deep Diagram Analysis
               </span>
               <p className="text-[11px] text-gray-300 leading-relaxed">
@@ -550,7 +605,7 @@ export function AiPanel({ editor }: AiPanelProps) {
                 onClick={handleRunArchitectureAssist}
                 onMouseEnter={playHover}
                 disabled={isAnalyzing}
-                className="mt-1 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold shadow-md hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                className="mt-1 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-95"
               >
                 {isAnalyzing ? (
                   <>
@@ -568,7 +623,7 @@ export function AiPanel({ editor }: AiPanelProps) {
             <div className="flex flex-col gap-3">
               {recommendations.length === 0 && !isAnalyzing && (
                 <div className="text-center py-6 text-gray-400 text-xs flex flex-col items-center gap-3 p-4 rounded-xl border border-white/5 bg-black/20">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                     <ShieldAlert size={20} />
                   </div>
                   <div className="flex flex-col gap-1 max-w-[260px]">
@@ -585,7 +640,7 @@ export function AiPanel({ editor }: AiPanelProps) {
                           setActiveTab('prompt');
                           setAiPrompt(`Add a ${tag} microservice architecture`);
                         }}
-                        className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-purple-300 font-mono active:scale-95 transition-all"
+                        className="px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-blue-300 font-mono active:scale-95 transition-all"
                       >
                         + {tag}
                       </button>
@@ -641,7 +696,7 @@ export function AiPanel({ editor }: AiPanelProps) {
                     <button
                       onClick={() => handleAddSuggestedNode(rec.suggestedNode!)}
                       onMouseEnter={playHover}
-                      className="mt-1 py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold text-purple-300 flex items-center justify-center gap-1.5 transition-all"
+                      className="mt-1 py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold text-blue-300 flex items-center justify-center gap-1.5 transition-all"
                     >
                       <Plus size={14} /> Add {rec.suggestedNode.label} to Canvas
                     </button>
@@ -679,7 +734,7 @@ export function AiPanel({ editor }: AiPanelProps) {
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{sugg.title}</h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">Press Tab</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">Press Tab</span>
                 </div>
                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{sugg.description}</p>
                 
@@ -687,7 +742,7 @@ export function AiPanel({ editor }: AiPanelProps) {
                   <button 
                     onClick={() => handleAcceptSuggestion(sugg)}
                     onMouseEnter={playHover}
-                    className="flex-1 py-1.5 flex items-center justify-center gap-1 rounded bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium hover:opacity-90 transition-opacity"
+                    className="flex-1 py-1.5 flex items-center justify-center gap-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
                   >
                     <Check size={14} /> Accept
                   </button>
@@ -721,14 +776,14 @@ export function AiPanel({ editor }: AiPanelProps) {
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               placeholder="Describe a diagram..."
-              className="w-full pl-4 pr-10 py-3 rounded-lg border bg-transparent outline-none transition-colors focus:border-purple-500 text-xs"
+              className="w-full pl-4 pr-10 py-3 rounded-lg border bg-transparent outline-none transition-colors focus:border-blue-500 text-xs"
               style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               disabled={isAiThinking}
             />
             <button
               type="submit"
               disabled={!aiPrompt.trim() || isAiThinking}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-white bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 disabled:opacity-50 transition-all"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-all"
             >
               <SendHorizontal size={16} />
             </button>

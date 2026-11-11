@@ -17,11 +17,18 @@ interface PresenceCursorsProps {
 
 export function PresenceCursors({ editor }: PresenceCursorsProps) {
   const updateMyPresence = useUpdateMyPresence();
-  const others = useOthers((othersList) =>
-    othersList.map((user) => ({
-      connectionId: user.connectionId,
-      presence: user.presence as unknown as UserPresence,
-    }))
+  const others = useOthers((users) =>
+    users.map((user) => {
+      const p = (user.presence || {}) as Record<string, unknown>;
+      const cursor = (p.cursor && typeof p.cursor === 'object') ? (p.cursor as { x: number; y: number }) : null;
+      const name = typeof p.name === 'string' ? p.name : undefined;
+      const color = typeof p.color === 'string' ? p.color : undefined;
+      const presence: UserPresence = { cursor, name, color };
+      return {
+        connectionId: user.connectionId,
+        presence,
+      };
+    })
   );
   const { currentUser, followingUserId, setConnectedUsers } = useAppStore();
   const [, setCameraTick] = useState(0);

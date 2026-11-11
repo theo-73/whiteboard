@@ -20,6 +20,15 @@ export async function POST(request: Request) {
     const shapes: CanvasShapeInput[] = body?.shapes || [];
     const format = body?.format || 'mermaid';
 
+    if (format !== 'mermaid') {
+      return NextResponse.json(
+        { 
+          error: 'Server export endpoint generates Mermaid syntax. Use client-side SVG/PNG canvas actions for image rendering.' 
+        },
+        { status: 400 }
+      );
+    }
+
     const nodeLines: string[] = [];
     const edgeLines: string[] = [];
     const shapeIdToNodeId = new Map<string, string>();
